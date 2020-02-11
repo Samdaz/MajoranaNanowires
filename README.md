@@ -1,5 +1,5 @@
 
-![GitHub Logo](/Logo.pdf)
-Format: ![Alt Text](url)
+
+![alt text](/Logo.pdf "Logo Title Text 1")
 
 # MajoranaNanowires
