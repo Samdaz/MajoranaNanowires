@@ -1,5 +1,5 @@
+![alt text][logo]
 
-
-![alt text](/Logo.pdf "Logo Title Text 1")
+[logo]: /Logo.pdf "Logo Title Text 2"
 
 # MajoranaNanowires
