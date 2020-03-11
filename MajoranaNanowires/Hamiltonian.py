@@ -337,8 +337,7 @@ def LO_builder(N,dis,m_eff,
 
 
 #%%
-def LO_solver_multiprocessing(H,N,dis,
-                                   args,pipe):
+def LO_solver_multiprocessing(H,N,dis, args,pipe):
     """
     Allows to solve the Hamiltonian using several CPUs.
     
@@ -365,7 +364,7 @@ def LO_solver_multiprocessing(H,N,dis,
     #Send work to a given process:
     E,U=LO_solver(H,N,dis,1,n_CPU=1,
                        mu=args['mu'],B=args['B'],aR=args['aR'],d=args['d'],
-                       SC=args['SC'],BdG=args['BdG'],
+                       BdG=args['BdG'],
                        space=args['space'],k_vec=args['k_vec'], m_eff=args['m_eff'],
                        sparse=args['sparse'],n_eig=args['n_eig'], near=args['near'],
                        section=args['section'],
@@ -383,7 +382,7 @@ def LO_solver_multiprocessing(H,N,dis,
 def LO_solver(H,N,dis,
                    n,n_CPU=1,
                    mu=0,B=0,aR=0,d=0,
-                   SC={},BdG='yes',
+                   BdG='yes',
                    space='position',k_vec=np.array([]), m_eff=0.023,
                    sparse='yes',n_eig=None,near=None,
                    section='rectangular',
@@ -471,11 +470,6 @@ def LO_solver(H,N,dis,
             step i, it is added to the Hamiltonian the SC pairing amplitude 
             d[i], whose matrix elements are the on-site superconductivity in
             each site of the lattice.
-            
-            
-        SC: {}
-            If the dictionary is not empty, a Superconductor Hamiltonian is
-            added to H before diagonalizing it. The elements of the dictionary...
             
         BdG: {"yes","no"}
             If BdG is "yes", it is solved the Hamiltonian in the Bogoliubov-de
@@ -585,7 +579,7 @@ def LO_solver(H,N,dis,
         m_eff=0.023
     elif np.isscalar(m_eff) and m_eff=='InSb':
         m_eff=0.015
-    
+        
     ##Solve the Hamiltonian:
     #For one value:  
     if n==1 and n_CPU==1:
@@ -604,7 +598,7 @@ def LO_solver(H,N,dis,
             if n_dim==1:
                 E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
             elif n_dim==2:
-                E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR,SC=SC,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
             elif n_dim==3:
                 if method=='BF':
                     E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -634,7 +628,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -656,7 +650,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -678,7 +672,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -703,7 +697,7 @@ def LO_solver(H,N,dis,
             
         E=np.empty([n_eig,n])
         U=np.empty([m,n_eig,n],dtype=complex)
-        args={'mu':mu,'B':B,'aR':aR,'d':d,'SC':SC,'BdG':BdG,'space':space,'k_vec':k_vec,'m_eff':m_eff,'sparse':sparse,'n_eig':n_eig,'near':near,'section':section,'method':method,'Nxp':Nxp,'n_orb':n_orb}
+        args={'mu':mu,'B':B,'aR':aR,'d':d,'BdG':BdG,'space':space,'k_vec':k_vec,'m_eff':m_eff,'sparse':sparse,'n_eig':n_eig,'near':near,'section':section,'method':method,'Nxp':Nxp,'n_orb':n_orb}
         
         for i_tot in range(int(n/n_CPU)):
             jobs=[]

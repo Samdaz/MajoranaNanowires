@@ -27,31 +27,53 @@ import scipy.sparse.linalg
 import scipy.linalg
 import scipy.constants as cons
 
-from MajoranaNanowires.Functions import order_eig, length, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular, concatenate
-
-
-
-
+from MajoranaNanowires.Functions import diagonal, concatenate
 
 
 #%%
+def Kane_2D_builder(N,dis,mu,
+                    params={},crystal='zincblende',
+                    mesh=0,
+                    sparse='yes'):
 
-
-###############################################################################
-
-
-###############################################################################
-########################    8 band Kane k.p Nanowires      ####################   
-###############################################################################
-        
-        
-        
-#######################    Calling functions     ##############################
-
-
-##################     3D_ Builders of Lutchyn Nanowires    ###################
-
-def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={},crystal='zincblende'):
+    """
+    2D 8-band k.p Hamiltonian builder. It obtaines the Hamiltoninan for a 3D
+    wire which is infinite in one direction, decribed using 8-band k.p theory.
+    
+    Parameters
+    ----------
+        N: int or arr
+            Number of sites.
+            
+        dis: int or arr
+            Distance (in nm) between sites.
+            
+        mu: float or arr
+            Chemical potential. If it is an array, each element is the on-site
+            chemical potential
+            
+        params: dic or str
+            Kane/Luttinger parameters of the k.p Hamiltonian. 'InAs', 'InSb',
+            'GaAs' and 'GaSb' selects the defult parameters for these materials.
+            
+        crystal: {'zincblende','wurtzite','minimal'}
+            Crystal symmetry along the nanowire growth. 'minimal' is a minimal
+            model in which the intra-valence band coupling are ignored.
+            
+        mesh: mesh
+            If the discretization is homogeneous, mesh=0. Otherwise, mesh
+            provides a mesh with the position of the sites in the mesh.
+            
+        sparse: {"yes","no"}
+            Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
+            while "no" builds a dense matrix.
+           
+            
+    Returns
+    -------
+        H: arr
+            Hamiltonian matrix.
+    """
     
     if (params=={} or params=='InAs') and crystal=='minimal':
         gamma0, gamma1, gamma2, gamma3 = 1, 0,0,0
@@ -135,7 +157,6 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
     #Obtain the eigenenergies:
     tx=cons.hbar**2/(2*m_eff*cons.m_e*(dis_x*1e-9)**2)/cons.e*1e3*(xi_x[1::,:]+xi_x[:-1,:])/2
     ty=cons.hbar**2/(2*m_eff*cons.m_e*(dis_y*1e-9)**2)/cons.e*1e3*(xi_y[:,1::]+xi_y[:,:-1])/2
-#    txy=cons.hbar**2/(2*m_eff*cons.m_e*(dis_y*1e-9)*(dis_x*1e-9))/cons.e*1e3*(xi_x[1::,1::]+xi_x[:-1,:-1])/2*(xi_y[1::,1::]+xi_y[:-1,:-1])/2
     txy=cons.hbar**2/(2*m_eff*cons.m_e*(dis_x*1e-9)*(dis_y*1e-9))/cons.e*1e3*np.append(np.zeros((1,Ny)),xi_x[1::,:]+xi_x[:-1,:],axis=0)/2*np.append(np.zeros((Nx,1)),xi_y[:,1::]+xi_y[:,:-1],axis=1)/2
     txy=txy[1::,1::]
     

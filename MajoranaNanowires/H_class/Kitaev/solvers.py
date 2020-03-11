@@ -22,36 +22,14 @@ http://www.samdaz/MajoranaNanowires.com for more details.
 #%%############################################################################
 ########################    Required Packages      ############################   
 ###############################################################################
-import os
-os.environ["MKL_NUM_THREADS"] = "1" 
-os.environ["NUMEXPR_NUM_THREADS"] = "1" 
-os.environ["OMP_NUM_THREADS"] = "1" 
-import multiprocessing
-
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 import scipy.linalg
-import scipy.constants as cons
 
 from MajoranaNanowires.Functions import order_eig, length, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular, concatenate
 
 
-
-
-#%%   
-
-
-###############################################################################
-########################    Kitaev Nanowires      #############################   
-###############################################################################
-
-
-#######################    Calling functions     ##############################
-
-
-
-            
 #%%   
 def Kitaev_1D_solver(H,n,mu=0,n_eig='none'):
     

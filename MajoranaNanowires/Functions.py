@@ -678,7 +678,8 @@ def mask_hexagonal(fun_in,y,z,x=0,change=np.nan,mesh_type='regular'):
                         fun_out[j,k]=change
                     else:
                         fun_out[j,k]=fun_in[j,k]
-        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
+        if change=='masked':
+            fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
         
     else:
         Ny, Nz = len(y), len(z)
@@ -694,7 +695,159 @@ def mask_hexagonal(fun_in,y,z,x=0,change=np.nan,mesh_type='regular'):
                     fun_out[:,j,k]=np.ones(len(x))*change
                 else:
                     fun_out[:,j,k]=fun_in[:,j,k]
-        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
+        if change=='masked':
+            fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
+    
+    return (fun_out)
+
+
+#%%
+def mask_wire(fun_in,N,dis,change=np.nan,include=np.array(['wire']),W_w=0,W_l1=0,W_l2=0,faces_l1=np.array([]),faces_l2=np.array([])):
+    """
+    Mask for wires. This function change the values for those points of fun_in
+    which are outside the hexagonal section and/or layers surrounding the wire.
+    
+    Parameters
+    ----------
+        fun_in: arr
+            Function to be masked.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        change: value
+            Value to which change those points outside of the hexagonal section.
+            
+        include: arr
+            Whether to include the wire ('wire') and/or some layers ('layer_1
+            and/or 'layer_2').  
+            
+        W_w: float
+            Width of the nanowire. If W_w=0, then the width is taken as N*dis.
+            
+        W_l1: float
+            Width of the first layer surrounding the wire. W_l1=0 means that 
+            there is no layer.
+            
+        W_l2: float
+            Width of the first layer surrounding the wire. W_l1=0 means that 
+            there is no (second) layer.
+        
+        faces_l1: arr
+            Facets that the first layer covers to the wire. Each facet is
+            labeled with a number from 1 to 6 (the upper one is 1, and the rest 
+            are numbered clockwise). Each element of the array denotes with a 
+            string (e.g. np.array(['1','2'])) if such facet is covered.
+            
+        faces_l2: arr
+            Same for the second layer.
+        
+            
+    Returns
+    -------
+        fun_out: arr
+            Masked function.
+            
+    """
+    
+    if len(N)==3:
+        Nx, Ny, Nz = N
+        dis_x, dis_y, dis_z = dis
+        fun_in=fun_in[0]
+    
+    elif len(N)==2:
+        Ny, Nz = N
+        dis_y, dis_z = dis
+
+    y, z= np.linspace(-Ny*dis_y/2,Ny*dis_y/2,Ny), np.linspace(-Nz*dis_z/2,Nz*dis_z/2,Nz)
+
+    
+    if np.isscalar(W_w):
+        if W_w==0:
+            W_w=Ny*dis_y
+        a0=W_w/2
+        b0=a0*np.sin(np.pi/3)
+        
+    elif not(np.isscalar(W_w)):
+        a0=Ny*dis_y/2
+        b0=Nz*dis_z/2*np.sin(np.pi/3)
+        
+    if faces_l1.size==0:
+        faces_l1=np.array(['0'])
+    if faces_l2.size==0:
+        faces_l2=np.array(['0'])
+
+
+    fun_out=np.zeros((Ny,Nz))
+    for j in range(Ny):
+        for k in range(Nz):
+            if (include=='wire').any():
+                if (between(z[k], (-b0,b0)) and between(z[k],(2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0)) and between(z[k],(-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0))):
+                    fun_out[j,k]=fun_in[j,k]
+                else:
+                    fun_out[j,k]=change
+                
+            if (include=='layer_1').any():
+                if (faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0,b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0,2*b0/a0*y[j]+W_l1)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0,-2*b0/a0*y[j]+W_l1)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l1,-2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l1,2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l1/2,a0/2+W_l1/2)) and between(z[k], (-b0-W_l1,-b0)))):
+                    fun_out[j,k]=fun_in[j,k]
+                    
+            if (include=='layer_2').any():
+                if (faces_l2=='1').any():
+                    if (faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0+W_l1,b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0,b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                        
+                if (faces_l2=='2').any():
+#                    if (faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0+W_l1,2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l1,-2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                    if (faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0+W_l1,2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0,2*b0/a0*y[j]+W_l2)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                     
+                if (faces_l2=='6').any():
+#                    if (faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0+W_l1,-2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l1,2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                    if (faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0+W_l1,-2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0,-2*b0/a0*y[j]+W_l2)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    
+                if (faces_l2=='3').any():
+                    if (faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0-W_l1)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l1-W_l2,-2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l2,-2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                
+                if (faces_l2=='5').any():
+                    if (faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0-W_l1)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l1-W_l2,2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l2,2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    
+                if (faces_l2=='4').any():
+                    if (faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l1/2-W_l2/2,a0/2+W_l1/2+W_l2/2)) and between(z[k], (-b0-W_l1-W_l2,-b0)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l2/2,a0/2+W_l2/2)) and between(z[k], (-b0-W_l2,-b0)))):
+                        fun_out[j,k]=fun_in[j,k]
+
+    if change=='masked':
+        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))     
+        
+    if len(N)==3:
+        fun_out=np.tile(fun_out,(Nx,1,1))
     
     return (fun_out)
 
@@ -773,6 +926,9 @@ def H_rectangular2hexagonal(H,N,dis,BdG='no',output='H',m=0,sparse='yes'):
     
     l=0
     if (output=='H'): 
+        if m==0:
+            m=H_rectangular2hexagonal(H,N,dis,BdG=BdG,output='m_hex',m=0)
+        
         if BdG=='no':
             if sparse=='yes':
                 H_del=scipy.sparse.dok_matrix((m,2*Nx*Ny*Nz),dtype=complex)
@@ -994,6 +1150,8 @@ def U_hexagonal2rectangular(U_in,N,dis,BdG='no',space='position'):
         y, z = np.linspace(-float(Ly)/2,float(Ly)/2,Ny), np.linspace(-float(Lz)/2,float(Lz)/2,Nz)
         a0=float(Ly)/2
         b0=a0*np.sin(np.pi/3)*(Lz/Ly)
+        if scipy.sparse.issparse(U_in):
+            U_in=U_in.todense() 
         l=0
         if BdG=='no':
             for i in range(Nx):
@@ -1023,6 +1181,228 @@ def U_hexagonal2rectangular(U_in,N,dis,BdG='no',space='position'):
                             U_out[2*(k+(j+i*Ny)*Nz)+2*Nx*Ny*Nz,:]=np.zeros((n_eig))
                             U_out[2*(k+(j+i*Ny)*Nz)+1+2*Nx*Ny*Nz,:]=np.zeros((n_eig))
                     
+    return (U_out)
+            
+
+#%%
+def H_rec2shape(H,shape,N,dis,BdG='no',output='H',m=0):
+    """
+    Transform a Hamiltonian of a nanwoire with rectangular cross-section to a
+    nanowire with a different one.
+    
+    Parameters
+    ----------
+        H: arr
+            Hamiltonian with rectangular section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each 0 element means that the corresponding site is not
+            part of the section, while 1 means it is; or it can be 'hexagonal',
+            what means that the section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: {'yes','no'}
+            Whether the Hamiltonian has BdG symmetry.
+            
+        output: {'H','m'}
+            Either to return the Hamiltonian (output='H') or the number of sites
+            of the discretized Hamiltonian with the desired shape
+            (output='m').
+            
+        m: int
+            Number of sites of the discretized Hamiltonian with the desired
+            shape. If m=0, m is computed.
+
+    Returns
+    -------
+        Depends on the parameter output.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+    
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    
+    if m==0:
+        m=len(shape[shape==1])
+        m*=2*(BdG=='no')+4*(BdG=='yes')
+        
+    if scipy.sparse.issparse(H):
+        sparse='yes'
+        
+    if (output=='H'): 
+        if BdG=='no':
+            if sparse=='yes':
+                H_del=scipy.sparse.dok_matrix((m,2*np.prod(N)),dtype=complex)
+            else: 
+                H_del=np.zeros((m,2*np.prod(N)),dtype=complex)
+        elif BdG=='yes':
+            if sparse=='yes':
+                H_del=scipy.sparse.dok_matrix((m,4*np.prod(N)),dtype=complex)
+            else: 
+                H_del=np.zeros((m,4*np.prod(N)),dtype=complex)
+        
+        j=0                        
+        for i in range(np.prod(N)):
+            if shape[i]==1:
+                H_del[j,2*i],H_del[j+1,2*i+1] = 1, 1
+                if BdG=='yes':
+                    H_del[j+int(m/2),2*i+2*int(np.prod(N))],H_del[j+1+int(m/2),2*i+1+2*int(np.prod(N))] = 1, 1
+                j+=2
+
+        H=H_del.dot(H.dot(H_del.transpose()))    
+        return (H)
+    
+    
+    elif (output=='m'):
+        return (m)
+    
+    
+#%%
+def U_rec2shape(U_in,shape,N,dis,BdG='no',m=0):
+    """
+    Transform a wavefunction of a nanwoire with rectangular cross-section to a
+    nanowire with a different one, erasing to this end the elements of the
+    wavefunction outside the section of the wire.
+    
+    Parameters
+    ----------
+        U_in: arr
+            Wavefunction of a nanowire with rectangular section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each np.nan element means that the corresponding site is not
+            part of the section; or it can be 'hexagonal', what means that the 
+            section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: str
+            Whether the Hamiltonian has BdG symmetry.
+            
+        m: int
+            Number of sites of the discretized Hamiltonian with the desired
+            shape. If m=0, m is computed.
+
+    Returns
+    -------
+        U: arr
+            Wavefunction of a nanowire with hexagonal section.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+
+    n_eig=np.shape(U_in)[1]
+
+    if m==0:
+        m=len(shape[shape==1])
+        m*=2*(BdG=='no')+4*(BdG=='yes')
+    
+    if scipy.sparse.issparse(U_in):
+        sparse='yes'
+        U_in=U_in.todense()
+    else:
+        sparse='no'
+        
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    shape=np.repeat(shape,2)
+    if BdG=='yes':
+        shape=np.tile(shape,2)
+    
+    U=np.zeros((m,n_eig),dtype=complex)
+    U=U_in[shape==1,:]
+    if sparse=='yes':
+        U=scipy.sparse.dok_matrix(U)          
+    return (U)
+    
+
+#%%
+def U_shape2rec(U_in,shape,N,dis,BdG='no'):
+    """
+    Transform a wavefunction of a nanwoire with an arbitrary cross-section to a
+    nanowire with an rectangular one, filling with zeros the new elements 
+    outside the hexagonal section of the wire.
+    
+    Parameters
+    ----------
+        U_in: arr
+            Wavefunction of a nanowire with hexagonal section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each np.nan element means that the corresponding site is not
+            part of the section; or it can be 'hexagonal', what means that the 
+            section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: str
+            Whether the Hamiltonian has BdG symmetry.
+            
+        space: str
+            Whether the wavefunction is in position space or momentum.
+
+    Returns
+    -------
+        U: arr
+            Wavefunction of a nanowire with rectangular section.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+    
+    n_eig=len(U_in[0,:])
+    
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    shape=np.repeat(shape,2)
+    if BdG=='yes':
+        shape=np.tile(shape,2)
+
+    if scipy.sparse.issparse(U_in):
+        sparse='yes'
+        U_in=U_in.todense()
+    else:
+        sparse='no'
+    
+    if BdG=='no':
+        U_out = np.zeros((2*np.prod(N),int(n_eig)),dtype=complex)
+    elif BdG=='yes':
+        U_out = np.zeros((4*np.prod(N),int(n_eig)),dtype=complex)
+    U_out[shape==1,:]=U_in
+    if sparse=='yes':
+        U_out=scipy.sparse.dok_matrix(U_out)     
+        
     return (U_out)
             
 
