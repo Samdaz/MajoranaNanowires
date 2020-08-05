@@ -3,16 +3,15 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
                         "Environment" submodule
                       
-This sub-package builds and solves the electrostatic environments for different 
-heterostructures. Please, visit http://www.samdaz/MajoranaNanowires.com for
-more details.
+This sub-package builds and solves the electrostatic environment for different 
+heterostructures.
 
 ###############################################################################
            
@@ -22,7 +21,6 @@ more details.
 #%%############################################################################
 ########################    Required Packages      ############################   
 ###############################################################################
-
 import numpy as np
 
 from scipy import constants as cons
@@ -69,10 +67,10 @@ def Shell(L_wire,W_wire,W_SiO,W_SC,a_fen,W_0=0,section='rectangular',bc='open',f
             Boundary conditions of the wire.
             
         faces: arr
-            Facets that the metallic shell covers to the wire. Each facet is
-            labeled with a number from 1 to 6 (the upper one is 1, and the rest are
-            numbered clockwise). Each element of the array denotes with a 
-            string (e.g. np.array(['1','2'])) if such facet is covered.
+            Facets that the metallic shell covers the wire. Each facet is
+            labeled with a number from 1 to 6 (the upper one is 1, and the
+            rest are numbered clockwise). Each element of the array denotes
+            with a string (e.g. np.array(['1','2'])) if such facet is covered.
             
         mesh: Fenics mesh
             Fenics mesh to be reused.
@@ -168,6 +166,8 @@ def Shell(L_wire,W_wire,W_SiO,W_SC,a_fen,W_0=0,section='rectangular',bc='open',f
                     return True
                 elif (faces=='1').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire,R_wire+W_SC)))):
                     return True
+                elif (faces=='3').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (-R_wire-W_SC,-R_wire)))):
+                    return True
                 elif (faces=='lead_1').any() and ((dl.between(x[0], (-W_SC, 0+dl.DOLFIN_EPS)) and dl.between(x[1], (-R_wire-W_SC,R_wire+W_SC)) and dl.between(x[2], (-R_wire,R_wire+W_SC)))):
                     return True
                 elif (faces=='lead_2').any() and ((dl.between(x[0], (L_wire, L_wire+W_SC+dl.DOLFIN_EPS)) and dl.between(x[1], (-R_wire-W_SC,R_wire+W_SC)) and dl.between(x[2], (-R_wire,R_wire+W_SC)))):
@@ -232,7 +232,7 @@ def Shell(L_wire,W_wire,W_SiO,W_SC,a_fen,W_0=0,section='rectangular',bc='open',f
 
 
 #%%    
-def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rectangular',bc='open',contact='yes',mesh=0,V=0):
+def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rectangular',bc='open',contact='yes',bc_EuS='no',faces='1',mesh=0,V=0):
     """
     Build the electrostatic environment of a nanowie partially covered by a 
     metallic shell and a magnetic (insulating) one. Experiment: Y. Liu et al.
@@ -273,6 +273,10 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
         contact: {"yes","no"}
             Whether the metallic and magnetic layers overlap.
             
+        bc_EuS: {"yes","no"}
+            Whether to put a boundary condition in the part of the SC in
+            contact with the magnetic layer different to the other facet.
+            
         mesh: Fenics mesh
             Fenics mesh to be reused.
             
@@ -301,6 +305,11 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
         a0=W_wire/2
         b0= a0*np.sin(np.pi/3.0)        
     R_wire=W_wire/2
+    
+    if bc=='open':
+        space=L_wire*0.1
+    elif bc=='periodic':
+        space=0
     
     ##Create the mesh:
     if (V==0) and (mesh==0):
@@ -352,14 +361,14 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
             
         class Left_gate(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if (dl.between(x[0], (0, L_wire)) and (x[1]<=-R_wire-W_sep+1e-3) and dl.between(x[2], (-R_wire, R_wire))):
+                if (dl.between(x[0], (0+space, L_wire-space)) and (x[1]<=-R_wire-W_sep+1e-3) and dl.between(x[2], (-R_wire, R_wire))):
                     return True
                 else:
                     return False
                 
         class Right_gate(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if (dl.between(x[0], (0, L_wire)) and (x[1]>=R_wire+W_sep-1e-3) and dl.between(x[2], (-R_wire, R_wire))):
+                if (dl.between(x[0], (0+space, L_wire-space)) and (x[1]>=R_wire+W_sep-1e-3) and dl.between(x[2], (-R_wire, R_wire))):
                     return True
                 else:
                     return False
@@ -375,12 +384,26 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
                         return False
                     
                 elif contact=='yes':
-                    if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire-W_SC,-R_wire)) and dl.between(x[2], (-R_wire,R_wire+W_SC+W_mag)))):
-                        return True
-                    elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire+W_mag,R_wire+W_SC+W_mag)))):
+                    if bc_EuS=='no':
+                        if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire-W_SC,-R_wire)) and dl.between(x[2], (-R_wire,R_wire+W_SC+W_mag)))):
+                            return True
+                        elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire+W_mag,R_wire+W_SC+W_mag)))):
+                            return True
+                        else:
+                            return False
+                    elif bc_EuS=='yes':
+                        if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire-W_SC,-R_wire)) and dl.between(x[2], (-R_wire,R_wire+W_SC+W_mag)))):
+                            return True
+                        else:
+                            return False
+
+        if bc_EuS=='yes' and contact=='yes':
+            class SC_layers_EuS(dl.SubDomain):
+                def inside(self, x, on_boundary):
+                    if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire+W_mag,R_wire+W_SC+W_mag)))):
                         return True
                     else:
-                        return False
+                        return False          
                     
         class mag_layer(dl.SubDomain):
             def inside(self, x, on_boundary):
@@ -437,18 +460,18 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
             
         class Left_gate(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if (dl.between(x[0], (0, L_wire)) and (x[1]<=-a0-W_sep+1e-3) and dl.between(x[2], (-b0, b0))):
+                if (dl.between(x[0], (0+space, L_wire-space)) and (x[1]<=-a0-W_sep+1e-3) and dl.between(x[2], (-b0, b0))):
                     return True
                 else:
                     return False
                 
         class Right_gate(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if (dl.between(x[0], (0, L_wire)) and (x[1]>=a0+W_sep-1e-3) and dl.between(x[2], (-b0, b0))):
+                if (dl.between(x[0], (0+space, L_wire-space)) and (x[1]>=a0+W_sep-1e-3) and dl.between(x[2], (-b0, b0))):
                     return True
                 else:
                     return False
-
+            
         class SC_layers(dl.SubDomain):
             def inside(self, x, on_boundary):
                 if contact=='no':
@@ -460,13 +483,39 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
                         return False
                 
                 elif contact=='yes':
+                    if bc_EuS=='no':
+                        if faces=='2':
+                            if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (b0+W_mag,b0+W_mag+W_SC)))):
+                                return True
+                            elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,b0+W_mag)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0,2*b0/a0*x[1]+2*b0+W_SC)))):
+                                return True
+                            elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (-b0,-2*b0/a0*x[1]-2*b0+a_fen*b0/a0*2)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0-W_SC,2*b0/a0*x[1]+2*b0)))):
+                                return True
+                            else:
+                                return False
+
+                        else:
+                            if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (b0+W_mag,b0+W_mag+W_SC)))):
+                                return True
+                            elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,b0+W_mag)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0,2*b0/a0*x[1]+2*b0+W_SC)))):
+                                return True
+                            else:
+                                return False
+                    if bc_EuS=='yes':
+                        if ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,b0+W_mag)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0,2*b0/a0*x[1]+2*b0+W_SC)))):
+                            return True
+                        else:
+                            return False
+                        
+        if bc_EuS=='yes' and contact=='yes':
+            class SC_layers_EuS(dl.SubDomain):
+                def inside(self, x, on_boundary):
                     if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (b0+W_mag,b0+W_mag+W_SC)))):
-                        return True
-                    elif ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,b0+W_mag)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0,2*b0/a0*x[1]+2*b0+W_SC)))):
                         return True
                     else:
                         return False
-                    
+                        
+                        
         class mag_layer(dl.SubDomain):
             def inside(self, x, on_boundary):
                 if contact=='no':
@@ -511,6 +560,23 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
                         return True
                     else:
                         return False
+                    
+    if (bc=='open'):   
+        if section=='rectangular':
+            class Leads(dl.SubDomain):
+                def inside(self, x, on_boundary):
+                    if (dl.between(x[2], (-R_wire,R_wire+W_mag+W_SC)) and dl.between(x[1],(-R_wire-W_mag-W_SC,R_wire+W_mag+W_SC)) and ((x[0] <= 0 + 1e-3) or (x[0] >= L_wire- 1e-3)) ):
+                        return True
+                    else:
+                        return False
+                    
+        elif section=='hexagonal':
+            class Leads(dl.SubDomain):
+                def inside(self, x, on_boundary):
+                    if (dl.between(x[2], (-b0,b0+W_mag+W_SC)) and dl.between(x[1],(-R_wire-W_mag-W_SC,R_wire+W_mag+W_SC)) and ((x[0] <= 0 + 1e-3) or (x[0] >= L_wire- 1e-3)) ):
+                        return True
+                    else:
+                        return False
                 
     ##Define domains:
     domains = dl.MeshFunction("size_t", mesh,3)
@@ -527,7 +593,14 @@ def Magnetic_layer(L_wire,W_wire,W_sub,W_SC,W_mag,W_ox,a_fen,W_sep,section='rect
     SC_layers().mark(boundaries, 2)
     Left_gate().mark(boundaries, 3)
     Right_gate().mark(boundaries, 4)
-    
+    if bc_EuS=='yes':
+        SC_layers_EuS().mark(boundaries, 5)
+        if bc=='open':
+            Leads().mark(boundaries, 6)
+    else:
+        if bc=='open':
+            Leads().mark(boundaries, 5)
+
     return (mesh),(V),(domains),(boundaries)
 
 
@@ -1895,7 +1968,7 @@ def Multigated(L_wire,W_wire,W_sub,sep,a_fen,section='rectangular',bc='open',mes
 
 
 #%%
-def Multigated_and_shell(L_wire,W_wire,W_sub,W_SC,a_fen,sep,section='rectangular',bc='open',mesh=0,V=0):
+def Multigated_and_shell(L_wire,W_wire,W_sub,W_SC,a_fen,sep,section='rectangular',faces=np.array(['1']),bc='open',mesh=0,V=0):
     """
     Build the electrostatic environment of a nanowire covered with a metallic
     shell and surrounded by three gates, two side-gates and one back-gate.
@@ -1923,6 +1996,12 @@ def Multigated_and_shell(L_wire,W_wire,W_sub,W_SC,a_fen,sep,section='rectangular
             
         section: {"rectangular","hexagonal"}
             Section profile of the nanowire.
+            
+        faces: arr
+            Facets that the metallic shell covers the wire. Each facet is
+            labeled with a number from 1 to 6 (the upper one is 1, and the
+            rest are numbered clockwise). Each element of the array denotes
+            with a string (e.g. np.array(['1','2'])) if such facet is covered.
             
         bc: {"open","periodic"}
             Boundary conditions of the wire.
@@ -2009,7 +2088,13 @@ def Multigated_and_shell(L_wire,W_wire,W_sub,W_SC,a_fen,sep,section='rectangular
                 
         class SC_layers(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire,R_wire+W_SC)))):
+                if (faces=='2').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (R_wire,R_wire+W_SC)) and dl.between(x[2], (-R_wire,R_wire+W_SC)))):
+                    return True
+                elif (faces=='4').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire-W_SC,-R_wire)) and dl.between(x[2], (-R_wire,R_wire+W_SC)))):
+                    return True
+                elif (faces=='1').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (R_wire,R_wire+W_SC)))):
+                    return True
+                elif (faces=='3').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-R_wire,R_wire)) and dl.between(x[2], (-R_wire-W_SC,-R_wire)))):
                     return True
                 else:
                     return False
@@ -2049,7 +2134,17 @@ def Multigated_and_shell(L_wire,W_wire,W_sub,W_SC,a_fen,sep,section='rectangular
             
         class SC_layers(dl.SubDomain):
             def inside(self, x, on_boundary):
-                if ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (b0,b0+W_SC)))):
+                if (faces=='1').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (b0,b0+W_SC)))):
+                    return True                    
+                elif (faces=='2').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (-2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,2*b0/a0*x[1]+W_SC)) and dl.between(x[2], (2*b0/a0*x[1]-2*b0,-2*b0/a0*x[1]+2*b0+W_SC)))):
+                    return True
+                elif (faces=='6').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (2*b0/a0*x[1]+2*b0-a_fen*b0/a0*2,-2*b0/a0*x[1]+W_SC)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0,2*b0/a0*x[1]+2*b0+W_SC)))):
+                    return True
+                elif (faces=='3').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (-b0,2*b0/a0*x[1]-2*b0+a_fen*b0/a0*2)) and dl.between(x[2], (2*b0/a0*x[1]-2*b0-W_SC,-2*b0/a0*x[1]+2*b0)))):
+                    return True
+                elif (faces=='5').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[2], (-b0,-2*b0/a0*x[1]-2*b0+a_fen*b0/a0*2)) and dl.between(x[2], (-2*b0/a0*x[1]-2*b0-W_SC,2*b0/a0*x[1]+2*b0)))):
+                    return True
+                elif (faces=='4').any() and ((dl.between(x[0], (0,L_wire)) and dl.between(x[1], (-a0/2,a0/2)) and dl.between(x[2], (-b0-W_SC,-b0+a_fen)))):
                     return True
                 else:
                     return False
@@ -2236,7 +2331,8 @@ def JJ_2DEG(L_N,L_SC,Y_wire,Z_wire,W_SiO,W_SC,a_fen,L_gate=0,x_0=0,SC2='no',mesh
 def JJ_nanowire(L_N,L_SC,Y_wire,Z_wire,W_SiO,W_SC,a_fen,L_gate=0,x_0=0,SC2='no',mesh=0,V=0):
     """
     Build the electrostatic environment for a Josephson junction made of a
-    nanowire. Experiment: L. Tosi et al., Phys. Rev. X 9, 011010 (2019).
+    (hexagonal cross-section) nanowire. Experiment: L. Tosi et al., Phys. Rev.
+    X 9, 011010 (2019).
     
     Parameters
     ----------
@@ -2425,7 +2521,8 @@ def JJ_nanowire(L_N,L_SC,Y_wire,Z_wire,W_SiO,W_SC,a_fen,L_gate=0,x_0=0,SC2='no',
 #%%
 def Density_Fenics(den,points_site,points_mesh,mesh,V):
     """
-    Transform the charge density of a numpy array to a function in Fenics.
+    Transform the charge density written in a numpy array to a function in 
+    Fenics.
     
     Parameters
     ----------

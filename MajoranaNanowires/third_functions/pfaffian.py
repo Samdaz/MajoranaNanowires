@@ -3,15 +3,15 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
                         "pfaffian" submodule
-                  Sub-package created by M. Wimmer
+               Sub-package created by M. Wimmer (2011)
                       
-This sub-package is used for computing Pfaffians. It was created by M. Wimmer.
+This sub-package computes Pfaffians. It has been enterly created by M. Wimmer.
 Visit https://arxiv.org/abs/1102.3440 for more detail, or the article ACM 
 Trans. Math. Software 38, 30 (2012).
 

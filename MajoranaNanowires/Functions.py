@@ -3,7 +3,7 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
@@ -11,17 +11,16 @@
                         "Function" submodule
                       
 This sub-package contains some functions required for the "Hamiltonian" 
-sub-package. Please, visit http://www.samdaz/MajoranaNanowires.com for more
-details.
+sub-package.
 
 ###############################################################################
            
 '''
 
+
 #%%############################################################################
 ########################    Required Packages      ############################   
 ###############################################################################
-
 import numpy as np
 
 import scipy.sparse
@@ -44,7 +43,7 @@ def FermiDirac(E,kT,mu=0):
             Energies.
         
         kT: scalar
-            Temperature.
+            Temperature (in units of energy).
             
         mu: scalar or arr
             Fermi energy.
@@ -64,7 +63,7 @@ def FermiDirac(E,kT,mu=0):
 #%%
 def density_TF(phi,kT=0,E_F=0,material='InAs',band='conduction',Vz=0):
     """
-    Computes the charge density of a 3D electron gas in the Thomas-Fermi 
+    Computes the charge density of a 3D (free) electron gas in the Thomas-Fermi 
     approximation.
     
     Parameters
@@ -73,18 +72,19 @@ def density_TF(phi,kT=0,E_F=0,material='InAs',band='conduction',Vz=0):
             Electrostatic energy.
         
         kT: scalar
-            Temperature.
+            Temperature (in units of energy).
             
         E_F: scalar or arr
             Fermi energy.
             
         material: str or dic
-            Material in which it is evaluated. For a general material,
-            'material' is dictionary with arguments m_eff (conduction effective
-            mass), m_eff_hh (heavy hole effective mass), m_eff_lh (light hole
-            effective mass), and E_gap (semiconductor gap). These parameters
-            are already saved in this function for InAs and InSb, which can be
-            chosen by choosing material='InAs' or 'InSb', resprectively.
+            Material for which is evaluated. For a general material,
+            'material' is a dictionary with arguments m_eff (conduction 
+            effective mass), m_eff_hh (heavy hole effective mass), m_eff_lh 
+            (light hole effective mass), and E_gap (semiconductor gap). These 
+            parameters are already saved in this function for InAs and InSb, 
+            which can be chosen by choosing material='InAs' or 'InSb', 
+            resprectively.
             
         band: str
             Whether to include 'conduction', 'valence' or 'both' bands in the 
@@ -164,7 +164,7 @@ def density_TF(phi,kT=0,E_F=0,material='InAs',band='conduction',Vz=0):
 
 #%% ############################# Array manipulation
 #%%
-def order_eig(E,U,sparse='yes',BdG='yes'):
+def order_eig(E,U=0,sparse='yes',BdG='yes'):
     """
     Order the eigenfunctions from smaller to larger. If BdG==yes and
     sparse==yes, it also ensures that there are the same number of positive
@@ -182,7 +182,7 @@ def order_eig(E,U,sparse='yes',BdG='yes'):
             Whether the eigenspectrum has been computed from a sparse matrix.
             
         BdG: {'yes','no'}
-            Whether the eigenspectrum must have BdG symmetric or not.
+            Whether the eigenspectrum must have BdG symmetry or not.
             
             
     Returns
@@ -194,22 +194,38 @@ def order_eig(E,U,sparse='yes',BdG='yes'):
     
     n_eig=len(E)
     
-    if BdG=='yes':
-        if sparse=='yes':
-            idx = np.argsort(E) 
-            E = E[idx]    
-            U = U[:,idx]
+    if np.isscalar(U):
+        if BdG=='yes':
+            if sparse=='yes':
+                idx = np.argsort(E) 
+                E = E[idx]    
+                
+                if (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==1):
+                    E[n_eig-1]=-E[n_eig-2]
+                elif (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==-1):
+                    E[0]=-E[1]
             
-            if (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==1):
-                E[n_eig-1]=-E[n_eig-2]
-            elif (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==-1):
-                E[0]=-E[1]
+        idx = np.argsort(E)     
         
-    idx = np.argsort(E)     
-    E = E[idx]    
-    U = U[:,idx]
+        return (idx)
     
-    return (E),(U)
+    else:
+        if BdG=='yes':
+            if sparse=='yes':
+                idx = np.argsort(E) 
+                E = E[idx]    
+                U = U[:,idx]
+                
+                if (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==1):
+                    E[n_eig-1]=-E[n_eig-2]
+                elif (np.abs(E[0]+E[n_eig-1])>0.00001)and(np.sign(E[0]+E[n_eig-1])==-1):
+                    E[0]=-E[1]
+            
+        idx = np.argsort(E)     
+        E = E[idx]    
+        U = U[:,idx]
+        
+        return (E),(U)
 
 
 
@@ -241,8 +257,8 @@ def length(vec):
 #%%
 def diagonal(N,k=0,init=0,step=1):
     """
-    Indices of some diagonal of a marix. It is more efficient than numpy
-    counterpart.
+    Indices of some diagonal of a given marix. It is more efficient than its 
+    numpy counterpart.
     
     Parameters
     ----------
@@ -342,26 +358,27 @@ def between(arg, interval):
 #%%
 def arg_isclose(vec,val):
     """
-    Find the index of a given vector that corresponds to the element closer to
-    to an specific value.
+    Find the index of a given vector that corresponds to the element of the 
+    array "vec" which is closest to to an specific value "val".
     
     Parameters
     ----------
         vec: arr
-            Array in which it is desired to find the closer element. 
+            Array in which it is desired to find the closest element. 
         
         val: scalar
-            Closer value. 
+            Closest value. 
             
     Returns
     -------
         result: int
-            Index of the element of vec closer to val.
+            Index of the element of vec closest to val.
             
     """
     arg=np.argmin(np.abs(vec-val))
     
     return(arg)
+
 
 #%% ############################# Constructors or extractors
 #%%
@@ -386,7 +403,7 @@ def build_mesh(N,L,mesh_type='regular',fact=0.5,asym=1):
             Factor which regulates the separations between sites.
             
         asym: scalar
-            The asymetry between the factors applied for the x and y direction.
+            The asymmetry between the factors applied for the x and y direction.
             
     Returns
     -------
@@ -506,7 +523,8 @@ def get_potential(phi_in,x,y,z,symmetry='none',mesh_type='none'):
         symmetry: {'none','x','y','z','full-shell'}
             Imposed symmetry of the potential.
         
-        mesh_type:
+        mesh_type:___
+            ______________________________
             
     Returns
     -------
@@ -678,7 +696,8 @@ def mask_hexagonal(fun_in,y,z,x=0,change=np.nan,mesh_type='regular'):
                         fun_out[j,k]=change
                     else:
                         fun_out[j,k]=fun_in[j,k]
-        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
+        if change=='masked':
+            fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
         
     else:
         Ny, Nz = len(y), len(z)
@@ -694,35 +713,216 @@ def mask_hexagonal(fun_in,y,z,x=0,change=np.nan,mesh_type='regular'):
                     fun_out[:,j,k]=np.ones(len(x))*change
                 else:
                     fun_out[:,j,k]=fun_in[:,j,k]
-        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
+        if change=='masked':
+            fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))            
     
     return (fun_out)
 
 
 #%%
-def boundary_wire(N,dis):
+def mask_wire(fun_in,N,dis,change=np.nan,include=np.array(['wire']),W_w=0,W_l1=0,W_l2=0,faces_l1=np.array([]),faces_l2=np.array([])):
+    """
+    Mask for wires. This function change the values for those points of fun_in
+    which are outside the hexagonal section and/or layers surrounding the wire.
     
-    if len(N)==2:
-        N=np.array([1,N[0],N[1]])
-        dis=np.array([0,dis[0],dis[1]])
+    Parameters
+    ----------
+        fun_in: arr
+            Function to be masked.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        change: value
+            Value to which change those points outside of the hexagonal section.
+            
+        include: arr
+            Whether to include the wire ('wire') and/or some layers ('layer_1
+            and/or 'layer_2').  
+            
+        W_w: float
+            Width of the nanowire. If W_w=0, then the width is taken as N*dis.
+            
+        W_l1: float
+            Width of the first layer surrounding the wire. W_l1=0 means that 
+            there is no layer.
+            
+        W_l2: float
+            Width of the first layer surrounding the wire. W_l1=0 means that 
+            there is no (second) layer.
         
-    Nx, Ny, Nz = N[0], N[1], N[2]
-    Ly, Lz = dis[1]*Ny, dis[2]*Nz
-    y, z = np.linspace(-float(Ly)/2,float(Ly)/2,Ny), np.linspace(-float(Lz)/2,float(Lz)/2,Nz)
-    a0=float(Ly)/2
-    b0=a0*np.sin(np.pi/3)*(Lz/Ly)
+        faces_l1: arr
+            Facets that the first layer covers to the wire. Each facet is
+            labeled with a number from 1 to 6 (the upper one is 1, and the rest 
+            are numbered clockwise). Each element of the array denotes with a 
+            string (e.g. np.array(['1','2'])) if such facet is covered.
+            
+        faces_l2: arr
+            Same for the second layer.
+        
+            
+    Returns
+    -------
+        fun_out: arr
+            Masked function.
+            
+    """
     
-    m=0
-    sites=np.array([])
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                if (between(z[k], (-b0,b0)) and between(z[k],(2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0)) and between(z[k],(-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0)) ):
-                    if (between(z[k], (b0-dis[2],b0))):
-                        sites=np.append(sites,m)
-                        sites=np.append(sites,m+1)
-                    m=m+2
-    return (sites)
+    if len(N)==3:
+        Nx, Ny, Nz = N
+        dis_x, dis_y, dis_z = dis
+        fun_in=fun_in[0]
+    
+    elif len(N)==2:
+        Ny, Nz = N
+        dis_y, dis_z = dis
+
+    y, z= np.linspace(-(Ny-1)*dis_y/2,(Ny-1)*dis_y/2,Ny), np.linspace(-(Nz-1)*dis_z/2,(Nz-1)*dis_z/2,Nz)
+
+    
+    if np.isscalar(W_w):
+        if W_w==0:
+            W_w=Ny*dis_y
+        a0=W_w/2
+        b0=a0*np.sin(np.pi/3)
+        
+    elif not(np.isscalar(W_w)):
+        a0=Ny*dis_y/2
+        b0=Nz*dis_z/2*np.sin(np.pi/3)
+        
+    if faces_l1.size==0:
+        faces_l1=np.array(['0'])
+    if faces_l2.size==0:
+        faces_l2=np.array(['0'])
+
+    fun_out=np.zeros((Ny,Nz))
+    for j in range(Ny):
+        for k in range(Nz):
+            if (include=='wire').any():
+                if (between(z[k], (-b0,b0)) and between(z[k],(2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0)) and between(z[k],(-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0))):
+                    fun_out[j,k]=fun_in[j,k]
+                else:
+                    fun_out[j,k]=change
+                
+            if (include=='layer_1').any():
+                if (faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0,b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0,2*b0/a0*y[j]+W_l1)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0,-2*b0/a0*y[j]+W_l1)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l1,-2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l1,2*b0/a0*y[j]+2*b0+W_l1)))):
+                    fun_out[j,k]=fun_in[j,k]
+                elif (faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l1/2,a0/2+W_l1/2)) and between(z[k], (-b0-W_l1,-b0)))):
+                    fun_out[j,k]=fun_in[j,k]
+                    
+            if (include=='layer_2').any():
+                if (faces_l2=='1').any():
+                    if (faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0+W_l1,b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='1').any() and ((between(y[j], (-a0/2,a0/2)) and between(z[k], (b0,b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                        
+                if (faces_l2=='2').any():
+                    if (faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0+W_l1,2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='2').any() and ((between(z[k], (-2*b0/a0*y[j]+2*b0,2*b0/a0*y[j]+W_l2)) and between(z[k], (2*b0/a0*y[j]-2*b0,-2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                     
+                if (faces_l2=='6').any():
+                    if (faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0+W_l1,-2*b0/a0*y[j]+W_l1+W_l2)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='6').any() and ((between(z[k], (2*b0/a0*y[j]+2*b0,-2*b0/a0*y[j]+W_l2)) and between(z[k], (-2*b0/a0*y[j]-2*b0,2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    
+                if (faces_l2=='3').any():
+                    if (faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0-W_l1)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l1-W_l2,-2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='3').any() and ((between(z[k], (-b0,2*b0/a0*y[j]-2*b0)) and between(z[k], (2*b0/a0*y[j]-2*b0-W_l2,-2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                
+                if (faces_l2=='5').any():
+                    if (faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0-W_l1)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l1-W_l2,2*b0/a0*y[j]+2*b0+W_l1+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='5').any() and ((between(z[k], (-b0,-2*b0/a0*y[j]-2*b0)) and between(z[k], (-2*b0/a0*y[j]-2*b0-W_l2,2*b0/a0*y[j]+2*b0+W_l2)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    
+                if (faces_l2=='4').any():
+                    if (faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l1/2-W_l2/2,a0/2+W_l1/2+W_l2/2)) and between(z[k], (-b0-W_l1-W_l2,-b0)))):
+                        fun_out[j,k]=fun_in[j,k]
+                    elif not(faces_l1=='4').any() and ((between(y[j], (-a0/2-W_l2/2,a0/2+W_l2/2)) and between(z[k], (-b0-W_l2,-b0)))):
+                        fun_out[j,k]=fun_in[j,k]
+
+    if change=='masked':
+        fun_out=np.ma.array(fun_out, mask=np.isnan(fun_out))     
+        
+    if len(N)==3:
+        fun_out=np.tile(fun_out,(Nx,1,1))
+    
+    return (fun_out)
+
+
+#%%
+def interface(N,dis,width,faces,a0,b0):
+    """
+    Find points close to the some nanowire facet (assuming an hexagonal cross-
+    section nanowire).
+    
+    Parameters
+    ----------
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        witdh: float
+            Width of the "close region" to the facet.
+            
+        faces: arr
+            Which facets include in the search. Each facet is labeled with a
+            number from 1 to 6 (the upper one is 1, and the rest are numbered
+            clockwise). Each element of the array denotes with a string (e.g.
+            np.array(['1','2'])) if such facet is covered.
+        
+            
+    Returns
+    -------
+        sites: arr
+            Array with the 
+            
+    """  
+    
+    L=np.array([(N[0]-1)*dis[0], (N[1]-1)*dis[1], (N[2]-1)*dis[2]])
+    x, y =np.linspace(-L[1]/2,L[1]/2,N[1]), np.linspace(-L[2]/2,L[2]/2,N[2])
+
+    fun_out=np.zeros(N[1::],dtype=int)
+    for i in range(N[1]):
+        for j in range(N[2]):
+            if (faces=='1').any() and ((between(x[i], (-a0/2,a0/2)) and between(y[j], (b0-width,b0)) and between(y[j], (-2*b0/a0*x[i],b0))and between(y[j], (2*b0/a0*x[i],b0)))):
+                fun_out[i,j]=1
+            elif (faces=='6').any() and ((between(y[j], (-2*b0/a0*x[i]+2*b0-width*b0/a0*2,2*b0/a0*x[i])) and between(y[j], (2*b0/a0*x[i]-2*b0-width,-2*b0/a0*x[i]+2*b0)) and between(y[j], (0,b0)) )):
+                fun_out[i,j]=1
+            elif (faces=='2').any() and ((between(y[j], (2*b0/a0*x[i]+2*b0-width*b0/a0*2,-2*b0/a0*x[i])) and between(y[j], (-2*b0/a0*x[i]-2*b0-width,2*b0/a0*x[i]+2*b0)) and between(y[j], (0,b0)) )):
+                fun_out[i,j]=1
+            elif (faces=='5').any() and ((between(y[j], (-b0,2*b0/a0*x[i]-2*b0+width*b0/a0*2)) and between(y[j], (2*b0/a0*x[i]-2*b0,-2*b0/a0*x[i]+2*b0+width)) and between(y[j], (-b0,0)) )):
+                fun_out[i,j]=1
+            elif (faces=='3').any() and ((between(y[j], (-b0,-2*b0/a0*x[i]-2*b0+width*b0/a0*2)) and between(y[j], (-2*b0/a0*x[i]-2*b0,2*b0/a0*x[i]+2*b0+width)) and between(y[j], (-b0,0)) )):
+                fun_out[i,j]=1
+            elif (faces=='4').any() and ((between(x[i], (-a0/2,a0/2)) and between(y[j], (-b0,-b0+width)))):
+                fun_out[i,j]=1
+    
+    fun_out_end=np.zeros(N)
+    for i in range(N[0]):
+        fun_out_end[i,:,:]=fun_out
+    
+    return fun_out_end
+    
 
 
 #%%
@@ -773,6 +973,9 @@ def H_rectangular2hexagonal(H,N,dis,BdG='no',output='H',m=0,sparse='yes'):
     
     l=0
     if (output=='H'): 
+        if m==0:
+            m=H_rectangular2hexagonal(H,N,dis,BdG=BdG,output='m_hex',m=0)
+        
         if BdG=='no':
             if sparse=='yes':
                 H_del=scipy.sparse.dok_matrix((m,2*Nx*Ny*Nz),dtype=complex)
@@ -994,6 +1197,8 @@ def U_hexagonal2rectangular(U_in,N,dis,BdG='no',space='position'):
         y, z = np.linspace(-float(Ly)/2,float(Ly)/2,Ny), np.linspace(-float(Lz)/2,float(Lz)/2,Nz)
         a0=float(Ly)/2
         b0=a0*np.sin(np.pi/3)*(Lz/Ly)
+        if scipy.sparse.issparse(U_in):
+            U_in=U_in.todense() 
         l=0
         if BdG=='no':
             for i in range(Nx):
@@ -1026,7 +1231,236 @@ def U_hexagonal2rectangular(U_in,N,dis,BdG='no',space='position'):
     return (U_out)
             
 
+#%%
+def H_rec2shape(H,shape,N,dis,BdG='no',output='H',m=0):
+    """
+    Transform a Hamiltonian of a nanwoire with rectangular cross-section to a
+    nanowire with a different one.
+    
+    Parameters
+    ----------
+        H: arr
+            Hamiltonian with rectangular section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each 0 element means that the corresponding site is not
+            part of the section, while 1 means it is; or it can be 'hexagonal',
+            what means that the section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: {'yes','no'}
+            Whether the Hamiltonian has BdG symmetry.
+            
+        output: {'H','m'}
+            Either to return the Hamiltonian (output='H') or the number of sites
+            of the discretized Hamiltonian with the desired shape
+            (output='m').
+            
+        m: int
+            Number of sites of the discretized Hamiltonian with the desired
+            shape. If m=0, m is computed.
 
+    Returns
+    -------
+        Depends on the parameter output.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+    
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    
+    if m==0:
+        m=len(shape[shape==1])
+        if BdG=='no':
+            m=m*2
+        elif BdG=='yes':
+            m=m*4
+        
+    if scipy.sparse.issparse(H):
+        sparse='yes'
+    else:
+        sparse='no'
+        
+    if (output=='H'): 
+        if BdG=='no':
+            if sparse=='yes':
+                H_del=scipy.sparse.dok_matrix((m,2*np.prod(N)),dtype=complex)
+            else: 
+                H_del=np.zeros((m,2*np.prod(N)),dtype=complex)
+        elif BdG=='yes':
+            if sparse=='yes':
+                H_del=scipy.sparse.dok_matrix((m,4*np.prod(N)),dtype=complex)
+            else: 
+                H_del=np.zeros((m,4*np.prod(N)),dtype=complex)
+        
+        j=0                        
+        for i in range(np.prod(N)):
+            if shape[i]==1:
+                H_del[j,2*i],H_del[j+1,2*i+1] = 1, 1
+                if BdG=='yes':
+                    H_del[j+int(m/2),2*i+2*int(np.prod(N))],H_del[j+1+int(m/2),2*i+1+2*int(np.prod(N))] = 1, 1
+                j+=2
+
+        H=H_del.dot(H.dot(H_del.transpose()))    
+        return (H)
+    
+    
+    elif (output=='m'):
+        return (m)
+    
+    
+#%%
+def U_rec2shape(U_in,shape,N,dis,BdG='no',m=0):
+    """
+    Transform a wavefunction of a nanwoire with rectangular cross-section to a
+    nanowire with a different one, erasing to this end the elements of the
+    wavefunction outside the section of the wire.
+    
+    Parameters
+    ----------
+        U_in: arr
+            Wavefunction of a nanowire with rectangular section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each np.nan element means that the corresponding site is not
+            part of the section; or it can be 'hexagonal', what means that the 
+            section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: str
+            Whether the Hamiltonian has BdG symmetry.
+            
+        m: int
+            Number of sites of the discretized Hamiltonian with the desired
+            shape. If m=0, m is computed.
+
+    Returns
+    -------
+        U: arr
+            Wavefunction of a nanowire with hexagonal section.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+
+    n_eig=np.shape(U_in)[1]
+
+    
+    if m==0:
+        m=len(shape[shape==1])
+        if BdG=='no':
+            m=m*2
+        elif BdG=='yes':
+            m=m*4
+    
+    if scipy.sparse.issparse(U_in):
+        sparse='yes'
+        U_in=U_in.todense()
+    else:
+        sparse='no'
+        
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    shape=np.repeat(shape,2)
+    if BdG=='yes':
+        shape=np.tile(shape,2)
+    
+    U=np.zeros((m,n_eig),dtype=complex)
+    U=U_in[shape==1,:]
+    if sparse=='yes':
+        U=scipy.sparse.dok_matrix(U)          
+    return (U)
+    
+
+#%%
+def U_shape2rec(U_in,shape,N,dis,BdG='no'):
+    """
+    Transform a wavefunction of a nanwoire with an arbitrary cross-section to a
+    nanowire with an rectangular one, filling with zeros the new elements 
+    outside the hexagonal section of the wire.
+    
+    Parameters
+    ----------
+        U_in: arr
+            Wavefunction of a nanowire with hexagonal section.
+            
+        shape: arr or str
+            Shape of the section. It can be a (Nx,Ny,Nz) or (Ny,Nz) array,
+            where each np.nan element means that the corresponding site is not
+            part of the section; or it can be 'hexagonal', what means that the 
+            section must be an hexagonal shape.
+            
+        N: arr
+            Number of sites in each direction.
+            
+        dis: arr
+            Discretization in each direction.
+            
+        BdG: str
+            Whether the Hamiltonian has BdG symmetry.
+            
+        space: str
+            Whether the wavefunction is in position space or momentum.
+
+    Returns
+    -------
+        U: arr
+            Wavefunction of a nanowire with rectangular section.
+            
+    """  
+    
+    if len(N)==2:
+        N=np.array([1,N[0],N[1]])
+        dis=np.array([0,dis[0],dis[1]])
+    
+    n_eig=len(U_in[0,:])
+    
+    if np.isscalar(shape) and shape=='hexagonal':
+        shape=np.ones(N)
+        shape=mask_hexagonal(shape,np.linspace(-N[1]*dis[1]/2,N[1]*dis[1]/2,N[1]),np.linspace(-N[2]*dis[2]/2,N[2]*dis[2]/2,N[2]),x=np.linspace(0,N[0]*dis[0],N[0]),change=0)
+    shape=shape.flatten()
+    shape=np.repeat(shape,2)
+    if BdG=='yes':
+        shape=np.tile(shape,2)
+
+    if scipy.sparse.issparse(U_in):
+        sparse='yes'
+        U_in=U_in.todense()
+    else:
+        sparse='no'
+    
+    if BdG=='no':
+        U_out = np.zeros((2*np.prod(N),int(n_eig)),dtype=complex)
+    elif BdG=='yes':
+        U_out = np.zeros((4*np.prod(N),int(n_eig)),dtype=complex)
+    U_out[shape==1,:]=U_in
+    if sparse=='yes':
+        U_out=scipy.sparse.dok_matrix(U_out)     
+        
+    return (U_out)
+            
 
 #%% ############################# Spectrum
 #%%    
@@ -1044,7 +1478,7 @@ def prob(U,N,BdG='yes'):
             the direction i. If N is int, then there is just one dimension.
             
         BdG: {'yes','no'}
-            Whether the wvaefunction U is written in the BdG formalism.
+            Whether the wavefunction U is written in the BdG formalism.
             
     Returns
     -------
@@ -1078,7 +1512,7 @@ def Qtot(E,U,kT):
             Eigenstates corresponding to each energy.
         
         kT: scalar
-            Temperature.
+            Temperature (in units of energy).
 
 
     Returns
@@ -1131,7 +1565,7 @@ def Density_Matrix(E,U,kT):
             Eigenstates corresponding to each energy.
         
         kT: scalar
-            Temperature.
+            Temperature (in units of energy).
 
 
     Returns
@@ -1147,7 +1581,7 @@ def Density_Matrix(E,U,kT):
 #%%
 def Density(E,U,N,kT):
     """
-    3D charge densisty.
+    Computes the charge density of the system.
     
     Parameters
     ----------
@@ -1161,7 +1595,7 @@ def Density(E,U,N,kT):
             Number of sites in each direction.
             
         kT: scalar
-            Temperature (in meV).
+            Temperature (in units of energy).
 
     Returns
     -------
@@ -1220,7 +1654,7 @@ def Density_momentum(E,U,k,N,kT):
             Number of sites in each direction.
             
         kT: scalar
-            Temperature (in meV).
+            Temperature (in units of energy).
 
     Returns
     -------
@@ -1256,7 +1690,7 @@ def Density_momentum(E,U,k,N,kT):
 #%%
 def k_F(mu,aR,Vz,m_eff=0.023):
     """
-    Find the Fermi momentum for a 1D nanowire.
+    Find the Fermi momentum for a 1D infinite nanowire.
     
     Parameters
     ----------
@@ -1339,7 +1773,7 @@ def denfromDOS(k,E,kT):
             momentum vector.
             
         E: arr
-            Energies.
+            Energies (in units of energy).
             
 
     Returns
@@ -1431,7 +1865,7 @@ def dIdV(LDOS,E_sample,kT):
             Energies in which the dIdV (and LDOS) is evaluated.
             
         kT: float
-            Temperature.
+            Temperature (in units of energy).
 
     Returns
     -------
@@ -1450,8 +1884,6 @@ def dIdV(LDOS,E_sample,kT):
         for j in range(n):
             dIdV[i]=dIdV[i]+LDOS[j]*sech((E_sample[i]-E_sample[j])/(2*kT))**2 
     return (dIdV)
-
-
 
 
 #%% ############################# Others

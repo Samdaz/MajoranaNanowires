@@ -3,15 +3,14 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
               "H_class/Lutchyn_Oreg/builders" submodule
                       
-This sub-package builds Lutchyn-Oreg Hamiltonians for nanowires. Please, visit
-http://www.samdaz/MajoranaNanowires.com for more details.
+This sub-package builds Lutchyn-Oreg Hamiltonians.
 
 ###############################################################################
            
@@ -27,9 +26,7 @@ import scipy.sparse.linalg
 import scipy.linalg
 import scipy.constants as cons
 
-from MajoranaNanowires.Functions import order_eig, length, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular, concatenate
-
-
+from MajoranaNanowires.Functions import diagonal
 
 
 #%%
@@ -1024,126 +1021,6 @@ def LO_3D_builder_NoSC(N,dis,m_eff,mu,B,aR, space='position', k_vec=np.nan ,spar
 
 
 #%%
-def LO_3D_addOrbital(N,dis,m_eff,B,aR,sparse='yes'):
-
-    """
-    Add orbital effects to the 3D Lutchyn-Oreg Hamiltonian with 
-    superconductivity. It builds the Hamiltonian with only the orbital effects.
-    
-    Parameters
-    ----------
-        N: arr
-            Number of sites in each direction.
-            
-        dis: int or arr
-            Distance (in nm) between sites.
-            
-        m_eff: int or arr
-            Effective mass. If it is a 3D array, each element is the on-site
-            effective mass.
-            
-        B: float or arr
-            Zeeman splitting. If it is an array, each element is the Zeeman
-            splitting in each direction.
-            
-        aR: float or arr
-            Rashba coupling.
-            -If aR is a float, aR is the Rashba coupling along the z-direction,
-            with the same value in every site.
-            -If aR is a 1D array with length=3, each element of the array is
-            the rashba coupling in each direction.
-            -If aR is an array of arrays (3 x N), each element of aR[i] is 
-            a 3D array with the on-site Rashba couplings in the direction i.
-            
-        sparse: {"yes","no"}
-            Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
-            while "no" builds a dense matrix.
-           
-            
-    Returns
-    -------
-        H: arr
-            Hamiltonian with only the orbital effects.
-    """
-    
-    
-    #Obtain the dimensions:
-    Nx, Ny, Nz = N[0], N[1], N[2]
-    
-    if np.ndim(dis)==0:
-        dis_x, dis_y, dis_z = dis, dis, dis
-    else: 
-        dis_x, dis_y, dis_z = dis[0], dis[1], dis[2]
-    
-    m = 4 * Nx * Ny * Nz 
-    
-    #Make sure that the onsite parameters are arrays:
-    if np.isscalar(B):
-        Bx=B
-    else:
-        Bx=B[0]
-    
-    if np.ndim(aR)==0:
-        aRx=np.zeros((Nx,Ny,Nz))
-        aRy=np.zeros((Nx,Ny,Nz))
-        aRz=aR*np.ones((Nx,Ny,Nz))
-    elif np.ndim(aR)==1:
-        if len(aR)==3:
-            aRx=aR[0]*np.ones((Nx,Ny,Nz))
-            aRy=aR[1]*np.ones((Nx,Ny,Nz))
-            aRz=aR[2]*np.ones((Nx,Ny,Nz))
-        else:
-            aRx=np.zeros((Nx,Ny,Nz))
-            aRy=np.zeros((Nx,Ny,Nz))
-            aRz=aR*np.ones((Nx,Ny,Nz))
-    else:
-        aRx=aR[0]
-        aRy=aR[1]
-        aRz=aR[2]
-
-    y, z = np.linspace(-Ny*dis_y/2,Ny*dis_y/2,Ny), np.linspace(-Nz*dis_z/2,Nz*dis_z/2,Nz)
-
-    #Obtain some constants:        
-    f1,f2,f3 = cons.e**2*Bx/(8*cons.m_e*m_eff)/cons.e*1e3*(1e-9)**2, cons.hbar*cons.e*Bx/(2*m_eff*cons.m_e)/cons.e*1e3, Bx*cons.e/(2*cons.hbar)*(1e-9)**2
-
-    #Dictionary of sites:
-    dic=np.zeros((Nx,Ny,Nz,2),dtype=int)
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                dic[i,j,k,:]=np.array([2*(k+(j+i*Ny)*Nz),2*(k+(j+i*Ny)*Nz)+1])
-    
-    #Built the Hamiltonian of orbital effects:
-    if sparse=='no':
-        H = np.zeros((int(m), int(m)),dtype=complex)
-    elif sparse=='yes':
-        H = scipy.sparse.dok_matrix((int(m),int(m)),dtype=complex)
-    
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                H[np.ix_(dic[i,j,k,:],dic[i,j,k,:])] = np.array([[f1*(y[j]**2+z[k]**2)+f3*aRx[i,j,k]*z[k], -f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])-1j*f3*aRx[i,j,k]*y[j]], [-f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])+1j*f3*aRx[i,j,k]*y[j], f1*(y[j]**2+z[k]**2)-f3*aRx[i,j,k]*z[k]]])
-                H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j,k,:]+int(m/2))] = -np.array([[f1*(y[j]**2+z[k]**2)+f3*aRx[i,j,k]*z[k], -f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])+1j*f3*aRx[i,j,k]*y[j]], [-f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])-1j*f3*aRx[i,j,k]*y[j], f1*(y[j]**2+z[k]**2)-f3*aRx[i,j,k]*z[k]]])              
-                                
-                if (k>0):
-                    H[np.ix_(dic[i,j,k-1,:],dic[i,j,k,:])]=np.array([[-1j*f2*y[j]/(2*dis_z),0], [0,-1j*f2*y[j]/(2*dis_z)]])
-                    H[np.ix_(dic[i,j,k,:],dic[i,j,k-1,:])]=np.array([[1j*f2*y[j]/(2*dis_z),0], [0,1j*f2*y[j]/(2*dis_z)]])
-                    
-                    H[np.ix_(dic[i,j,k-1,:]+int(m/2),dic[i,j,k,:]+int(m/2))]=-np.array([[1j*f2*y[j]/(2*dis_z),0], [0,1j*f2*y[j]/(2*dis_z)]])
-                    H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j,k-1,:]+int(m/2))]=-np.array([[-1j*f2*y[j]/(2*dis_z),0], [0,-1j*f2*y[j]/(2*dis_z)]])
-        
-                if (j>0):
-                    H[np.ix_(dic[i,j-1,k,:],dic[i,j,k,:])]=np.array([[1j*f2*z[k]/(2*dis_y),0], [0,1j*f2*z[k]/(2*dis_y)]])
-                    H[np.ix_(dic[i,j,k,:],dic[i,j-1,k,:])]=np.array([[-1j*f2*z[k]/(2*dis_y),0], [0,-1j*f2*z[k]/(2*dis_y)]])
-                    
-                    H[np.ix_(dic[i,j-1,k,:]+int(m/2),dic[i,j,k,:]+int(m/2))]=-np.array([[-1j*f2*z[k]/(2*dis_y),0], [0,-1j*f2*z[k]/(2*dis_y)]])
-                    H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j-1,k,:]+int(m/2))]=-np.array([[1j*f2*z[k]/(2*dis_y),0], [0,1j*f2*z[k]/(2*dis_y)]])
-            
-    return (H)
-
-
-
-#%%
 def LO_3D_builder_MO(N,dis,m_eff,
                 mu,B,aR,d=0,
                 BdG='yes',
@@ -1309,13 +1186,133 @@ def LO_3D_builder_MO(N,dis,m_eff,
         d=d.flatten()
         H_SC = scipy.sparse.dok_matrix((int(2 * Nx * Ny * Nz),int(2 * Nx * Ny * Nz)),dtype=complex)
         H_SC[diagonal(int(2 * Nx * Ny * Nz),k=1,step=2)], H_SC[diagonal(int(2 * Nx * Ny * Nz),k=-1,step=2)] = -np.conj(d), np.conj(d)
-        
+
         return (H_2D,H_3D,H_SC)
 
     else:
         return (H_2D,H_3D)
     
 
+
+
+
+#%%
+def LO_3D_addOrbital(N,dis,m_eff,B,aR,sparse='yes'):
+
+    """
+    Add orbital effects to the 3D Lutchyn-Oreg Hamiltonian with 
+    superconductivity. It builds the Hamiltonian with only the orbital effects.
+    
+    Parameters
+    ----------
+        N: arr
+            Number of sites in each direction.
+            
+        dis: int or arr
+            Distance (in nm) between sites.
+            
+        m_eff: int or arr
+            Effective mass. If it is a 3D array, each element is the on-site
+            effective mass.
+            
+        B: float or arr
+            Zeeman splitting. If it is an array, each element is the Zeeman
+            splitting in each direction.
+            
+        aR: float or arr
+            Rashba coupling.
+            -If aR is a float, aR is the Rashba coupling along the z-direction,
+            with the same value in every site.
+            -If aR is a 1D array with length=3, each element of the array is
+            the rashba coupling in each direction.
+            -If aR is an array of arrays (3 x N), each element of aR[i] is 
+            a 3D array with the on-site Rashba couplings in the direction i.
+            
+        sparse: {"yes","no"}
+            Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
+            while "no" builds a dense matrix.
+           
+            
+    Returns
+    -------
+        H: arr
+            Hamiltonian with only the orbital effects.
+    """
+    
+    
+    #Obtain the dimensions:
+    Nx, Ny, Nz = N[0], N[1], N[2]
+    
+    if np.ndim(dis)==0:
+        dis_x, dis_y, dis_z = dis, dis, dis
+    else: 
+        dis_x, dis_y, dis_z = dis[0], dis[1], dis[2]
+    
+    m = 4 * Nx * Ny * Nz 
+    
+    #Make sure that the onsite parameters are arrays:
+    if np.isscalar(B):
+        Bx=B
+    else:
+        Bx=B[0]
+    
+    if np.ndim(aR)==0:
+        aRx=np.zeros((Nx,Ny,Nz))
+        aRy=np.zeros((Nx,Ny,Nz))
+        aRz=aR*np.ones((Nx,Ny,Nz))
+    elif np.ndim(aR)==1:
+        if len(aR)==3:
+            aRx=aR[0]*np.ones((Nx,Ny,Nz))
+            aRy=aR[1]*np.ones((Nx,Ny,Nz))
+            aRz=aR[2]*np.ones((Nx,Ny,Nz))
+        else:
+            aRx=np.zeros((Nx,Ny,Nz))
+            aRy=np.zeros((Nx,Ny,Nz))
+            aRz=aR*np.ones((Nx,Ny,Nz))
+    else:
+        aRx=aR[0]
+        aRy=aR[1]
+        aRz=aR[2]
+
+    y, z = np.linspace(-Ny*dis_y/2,Ny*dis_y/2,Ny), np.linspace(-Nz*dis_z/2,Nz*dis_z/2,Nz)
+
+    #Obtain some constants:        
+    f1,f2,f3 = cons.e**2*Bx/(8*cons.m_e*m_eff)/cons.e*1e3*(1e-9)**2, cons.hbar*cons.e*Bx/(2*m_eff*cons.m_e)/cons.e*1e3, Bx*cons.e/(2*cons.hbar)*(1e-9)**2
+
+    #Dictionary of sites:
+    dic=np.zeros((Nx,Ny,Nz,2),dtype=int)
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                dic[i,j,k,:]=np.array([2*(k+(j+i*Ny)*Nz),2*(k+(j+i*Ny)*Nz)+1])
+    
+    #Built the Hamiltonian of orbital effects:
+    if sparse=='no':
+        H = np.zeros((int(m), int(m)),dtype=complex)
+    elif sparse=='yes':
+        H = scipy.sparse.dok_matrix((int(m),int(m)),dtype=complex)
+    
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                H[np.ix_(dic[i,j,k,:],dic[i,j,k,:])] = np.array([[f1*(y[j]**2+z[k]**2)+f3*aRx[i,j,k]*z[k], -f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])-1j*f3*aRx[i,j,k]*y[j]], [-f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])+1j*f3*aRx[i,j,k]*y[j], f1*(y[j]**2+z[k]**2)-f3*aRx[i,j,k]*z[k]]])
+                H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j,k,:]+int(m/2))] = -np.array([[f1*(y[j]**2+z[k]**2)+f3*aRx[i,j,k]*z[k], -f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])+1j*f3*aRx[i,j,k]*y[j]], [-f3*(aRz[i,j,k]*z[k]+aRy[i,j,k]*y[j])-1j*f3*aRx[i,j,k]*y[j], f1*(y[j]**2+z[k]**2)-f3*aRx[i,j,k]*z[k]]])              
+                                
+                if (k>0):
+                    H[np.ix_(dic[i,j,k-1,:],dic[i,j,k,:])]=np.array([[-1j*f2*y[j]/(2*dis_z),0], [0,-1j*f2*y[j]/(2*dis_z)]])
+                    H[np.ix_(dic[i,j,k,:],dic[i,j,k-1,:])]=np.array([[1j*f2*y[j]/(2*dis_z),0], [0,1j*f2*y[j]/(2*dis_z)]])
+                    
+                    H[np.ix_(dic[i,j,k-1,:]+int(m/2),dic[i,j,k,:]+int(m/2))]=-np.array([[1j*f2*y[j]/(2*dis_z),0], [0,1j*f2*y[j]/(2*dis_z)]])
+                    H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j,k-1,:]+int(m/2))]=-np.array([[-1j*f2*y[j]/(2*dis_z),0], [0,-1j*f2*y[j]/(2*dis_z)]])
+        
+                if (j>0):
+                    H[np.ix_(dic[i,j-1,k,:],dic[i,j,k,:])]=np.array([[1j*f2*z[k]/(2*dis_y),0], [0,1j*f2*z[k]/(2*dis_y)]])
+                    H[np.ix_(dic[i,j,k,:],dic[i,j-1,k,:])]=np.array([[-1j*f2*z[k]/(2*dis_y),0], [0,-1j*f2*z[k]/(2*dis_y)]])
+                    
+                    H[np.ix_(dic[i,j-1,k,:]+int(m/2),dic[i,j,k,:]+int(m/2))]=-np.array([[-1j*f2*z[k]/(2*dis_y),0], [0,-1j*f2*z[k]/(2*dis_y)]])
+                    H[np.ix_(dic[i,j,k,:]+int(m/2),dic[i,j-1,k,:]+int(m/2))]=-np.array([[1j*f2*z[k]/(2*dis_y),0], [0,1j*f2*z[k]/(2*dis_y)]])
+            
+    return (H)
 
 
 

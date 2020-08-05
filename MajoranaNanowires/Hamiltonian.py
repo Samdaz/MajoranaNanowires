@@ -3,16 +3,15 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
                       "Hamiltonian" submodule
                       
-This sub-package builds and solves Kitaev, Lutchyn-Oreg and  8-band k.p models 
-for nanowires. Please, visit http://www.samdaz/MajoranaNanowires.com for more
-details.
+This sub-package builds and solves Kitaev, Lutchyn-Oreg and 8-band k.p 
+Hamiltonians for nanowires.
 
 ###############################################################################
            
@@ -40,12 +39,10 @@ import MajoranaNanowires.H_class.Kane.builders
 import MajoranaNanowires.H_class.Kane.solvers
 
 
- 
-
-
 #%%############################################################################
 ########################    Kitaev Nanowires      #############################   
 ###############################################################################
+
 
 #%%  
 def Kitaev_builder(N,mu,t,Δ,sparse='no'):
@@ -337,8 +334,7 @@ def LO_builder(N,dis,m_eff,
 
 
 #%%
-def LO_solver_multiprocessing(H,N,dis,
-                                   args,pipe):
+def LO_solver_multiprocessing(H,N,dis, args,pipe):
     """
     Allows to solve the Hamiltonian using several CPUs.
     
@@ -365,7 +361,7 @@ def LO_solver_multiprocessing(H,N,dis,
     #Send work to a given process:
     E,U=LO_solver(H,N,dis,1,n_CPU=1,
                        mu=args['mu'],B=args['B'],aR=args['aR'],d=args['d'],
-                       SC=args['SC'],BdG=args['BdG'],
+                       BdG=args['BdG'],
                        space=args['space'],k_vec=args['k_vec'], m_eff=args['m_eff'],
                        sparse=args['sparse'],n_eig=args['n_eig'], near=args['near'],
                        section=args['section'],
@@ -383,7 +379,7 @@ def LO_solver_multiprocessing(H,N,dis,
 def LO_solver(H,N,dis,
                    n,n_CPU=1,
                    mu=0,B=0,aR=0,d=0,
-                   SC={},BdG='yes',
+                   BdG='yes',
                    space='position',k_vec=np.array([]), m_eff=0.023,
                    sparse='yes',n_eig=None,near=None,
                    section='rectangular',
@@ -471,11 +467,6 @@ def LO_solver(H,N,dis,
             step i, it is added to the Hamiltonian the SC pairing amplitude 
             d[i], whose matrix elements are the on-site superconductivity in
             each site of the lattice.
-            
-            
-        SC: {}
-            If the dictionary is not empty, a Superconductor Hamiltonian is
-            added to H before diagonalizing it. The elements of the dictionary...
             
         BdG: {"yes","no"}
             If BdG is "yes", it is solved the Hamiltonian in the Bogoliubov-de
@@ -585,7 +576,7 @@ def LO_solver(H,N,dis,
         m_eff=0.023
     elif np.isscalar(m_eff) and m_eff=='InSb':
         m_eff=0.015
-    
+        
     ##Solve the Hamiltonian:
     #For one value:  
     if n==1 and n_CPU==1:
@@ -604,7 +595,7 @@ def LO_solver(H,N,dis,
             if n_dim==1:
                 E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
             elif n_dim==2:
-                E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR,SC=SC,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
             elif n_dim==3:
                 if method=='BF':
                     E,U=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -634,7 +625,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu[i],B=B,aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -656,7 +647,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B[i],aR=aR,space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -678,7 +669,7 @@ def LO_solver(H,N,dis,
                     if n_dim==1:
                         E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_1D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near)
                     elif n_dim==2:
-                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,SC=SC,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
+                        E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_2D_solver_NoSC(H,N,dis,m_eff=m_eff,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
                     elif n_dim==3:
                         if method=='BF':
                             E[:,i],U[:,:,i]=MajoranaNanowires.H_class.Lutchyn_Oreg.solvers.LO_3D_solver_NoSC(H,N,dis,mu=mu,B=B,aR=aR[i],space=space,k_vec=k_vec,sparse=sparse,n_eig=n_eig,near=near,section=section)
@@ -703,7 +694,7 @@ def LO_solver(H,N,dis,
             
         E=np.empty([n_eig,n])
         U=np.empty([m,n_eig,n],dtype=complex)
-        args={'mu':mu,'B':B,'aR':aR,'d':d,'SC':SC,'BdG':BdG,'space':space,'k_vec':k_vec,'m_eff':m_eff,'sparse':sparse,'n_eig':n_eig,'near':near,'section':section,'method':method,'Nxp':Nxp,'n_orb':n_orb}
+        args={'mu':mu,'B':B,'aR':aR,'d':d,'BdG':BdG,'space':space,'k_vec':k_vec,'m_eff':m_eff,'sparse':sparse,'n_eig':n_eig,'near':near,'section':section,'method':method,'Nxp':Nxp,'n_orb':n_orb}
         
         for i_tot in range(int(n/n_CPU)):
             jobs=[]
@@ -746,13 +737,13 @@ def LO_solver(H,N,dis,
 
 #%%   
 def Kane_builder(N,dis,
-                 mu,
+                 mu,B=0,
                  mesh=0,sparse='yes',
                  params={},crystal='zincblende'):
     
     """
     8-band Kane Hamiltonian builder. It obtaines the Hamiltoninan for a
-    8-band Kane Hamiltonain.
+    8-band Kane model.
     
     Parameters
     ----------
@@ -768,9 +759,11 @@ def Kane_builder(N,dis,
             Chemical potential. If it is an array (1D, 2D or 3D), each element 
             is the chemical potential on each site of the lattice.
             
+        B: float
+            Magnetic field along the wire's direction.
+            
         mesh: arr
             Discretization mesh.
-            
 
         sparse: {"yes","no"}
             Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
@@ -794,7 +787,7 @@ def Kane_builder(N,dis,
     if np.isscalar(N):
         H=MajoranaNanowires.H_class.Kane.builders.Kane_1D_builder(N,dis,mu,mesh=mesh,sparse=sparse,params=params,crystal=crystal)
     elif len(N)==2:
-        H=MajoranaNanowires.H_class.Kane.builders.Kane_2D_builder(N,dis,mu,mesh=mesh,sparse=sparse,params=params,crystal=crystal)
+        H=MajoranaNanowires.H_class.Kane.builders.Kane_2D_builder(N,dis,mu,B=B,mesh=mesh,sparse=sparse,params=params,crystal=crystal)
     elif len(N)==3:
         H=MajoranaNanowires.H_class.Kane.builders.Kane_3D_builder(N,dis,mu,mesh=mesh,sparse=sparse,params=params,crystal=crystal)
                 
@@ -811,7 +804,7 @@ def Kane_solver(H,N,dis,
     
     """
     8-band Kane Hamiltonian solver. It obtaines the eigenspectrum of a 8-band 
-    Hamiltoninan (built with Kane_builder).
+    model (built with Kane_builder).
     
     Parameters
     ----------

@@ -3,15 +3,14 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
                   "H_class/Kane/builders" submodule
                       
-This sub-package builds 8-band k.p Hamiltonians for infinite nanowires. Please,
-visit http://www.samdaz/MajoranaNanowires.com for more details.
+This sub-package builds 8-band k.p Hamiltonians for infinite nanowires.
 
 ###############################################################################
            
@@ -27,31 +26,56 @@ import scipy.sparse.linalg
 import scipy.linalg
 import scipy.constants as cons
 
-from MajoranaNanowires.Functions import order_eig, length, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular, concatenate
-
-
-
-
+from MajoranaNanowires.Functions import diagonal, concatenate
 
 
 #%%
+def Kane_2D_builder(N,dis,mu,B=0,
+                    params={},crystal='zincblende',
+                    mesh=0,
+                    sparse='yes'):
 
+    """
+    2D 8-band k.p Hamiltonian builder. It obtaines the Hamiltoninan for a 3D
+    wire which is infinite in one direction, decribed using 8-band k.p theory.
+    
+    Parameters
+    ----------
+        N: int or arr
+            Number of sites.
+            
+        dis: int or arr
+            Distance (in nm) between sites.
+            
+        mu: float or arr
+            Chemical potential. If it is an array, each element is the on-site
+            chemical potential.
 
-###############################################################################
-
-
-###############################################################################
-########################    8 band Kane k.p Nanowires      ####################   
-###############################################################################
-        
-        
-        
-#######################    Calling functions     ##############################
-
-
-##################     3D_ Builders of Lutchyn Nanowires    ###################
-
-def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={},crystal='zincblende'):
+        B: float
+            Magnetic field along the wire's direction.
+            
+        params: dic or str
+            Kane/Luttinger parameters of the k.p Hamiltonian. 'InAs', 'InSb',
+            'GaAs' and 'GaSb' selects the defult parameters for these materials.
+            
+        crystal: {'zincblende','wurtzite','minimal'}
+            Crystal symmetry along the nanowire growth. 'minimal' is a minimal
+            model in which the intra-valence band coupling are ignored.
+            
+        mesh: mesh
+            If the discretization is homogeneous, mesh=0. Otherwise, mesh
+            provides a mesh with the position of the sites in the mesh.
+            
+        sparse: {"yes","no"}
+            Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
+            while "no" builds a dense matrix.
+           
+            
+    Returns
+    -------
+        H: arr
+            Hamiltonian matrix.
+    """
     
     if (params=={} or params=='InAs') and crystal=='minimal':
         gamma0, gamma1, gamma2, gamma3 = 1, 0,0,0
@@ -135,7 +159,6 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
     #Obtain the eigenenergies:
     tx=cons.hbar**2/(2*m_eff*cons.m_e*(dis_x*1e-9)**2)/cons.e*1e3*(xi_x[1::,:]+xi_x[:-1,:])/2
     ty=cons.hbar**2/(2*m_eff*cons.m_e*(dis_y*1e-9)**2)/cons.e*1e3*(xi_y[:,1::]+xi_y[:,:-1])/2
-#    txy=cons.hbar**2/(2*m_eff*cons.m_e*(dis_y*1e-9)*(dis_x*1e-9))/cons.e*1e3*(xi_x[1::,1::]+xi_x[:-1,:-1])/2*(xi_y[1::,1::]+xi_y[:-1,:-1])/2
     txy=cons.hbar**2/(2*m_eff*cons.m_e*(dis_x*1e-9)*(dis_y*1e-9))/cons.e*1e3*np.append(np.zeros((1,Ny)),xi_x[1::,:]+xi_x[:-1,:],axis=0)/2*np.append(np.zeros((Nx,1)),xi_y[:,1::]+xi_y[:,:-1],axis=1)/2
     txy=txy[1::,1::]
     
@@ -152,6 +175,36 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
     e, em, mu, tx, ty = e.flatten(), em.flatten(), mu.flatten(), tx.flatten(), ty.flatten() 
     ax,ay=ax.flatten(),ay.flatten()
     
+    if not(B==0):
+        x, y = np.zeros(N), np.zeros(N)
+        if np.isscalar(mesh) and mesh==0:
+            mesh=np.ones((2,Nx,Ny))*dis[0]
+        for i in range(Nx):
+            for j in range(Ny):
+                x[i,j]=np.sum(mesh[0,0:i+1,j])-(Nx-1)*dis_x/2
+                y[i,j]=np.sum(mesh[1,i,0:j+1])-(Ny-1)*dis_y/2
+        for i in range(int((Nx-1)/2)):
+            x[Nx-i-1,:]=-x[i,:]
+        x[int((Nx-1)/2),:]=0
+        x=x/np.abs(x[0,0])*(Nx-1)*dis_x/2
+        for j in range(int((Ny-1)/2)):
+            y[:,Ny-j-1]=-y[:,j]
+        y[:,int((Ny-1)/2)]=0
+        y=y/np.abs(y[0,0])*(Ny-1)*dis_y/2
+                
+        fact_B=cons.e/cons.hbar*1e-18
+        Mx, My = -fact_B*y/2*B, fact_B*x/2*B
+        
+        Mx_kx, My_ky = (xi_x[1::,:]*Mx[1::,:]+xi_x[:-1,:]*Mx[:-1,:])/2/(2*dis_x), (xi_y[:,1::]*My[:,1::]+xi_y[:,:-1]*My[:,:-1])/2/(2*dis_y)
+        My_ky=np.insert(My_ky,np.arange(Ny-1,(Ny-1)*Nx,(Ny-1)),np.zeros(Nx-1))
+        
+        Mm_kx, Mm_ky = (xi_x[1::,:]*(Mx[1::,:]-1j*My[1::,:])+xi_x[:-1,:]*(Mx[:-1,:]-1j*My[:-1,:]))/2/(2*dis_x), -(xi_y[:,1::]*(Mx[:,1::]+1j*My[:,1::])+xi_y[:,:-1]*(Mx[:,:-1]+1j*My[:,:-1]))/2/(2*dis_y)
+        Mm_ky=np.insert(Mm_ky,np.arange(Ny-1,(Ny-1)*Nx,(Ny-1)),np.zeros(Nx-1))
+
+        Mx, My = Mx.flatten(), My.flatten()
+        Mx_kx, My_ky = Mx_kx.flatten(), My_ky.flatten()
+        Mm_kx, Mm_ky = Mm_kx.flatten(), Mm_ky.flatten()
+    
     
     ## Built the Hamiltonian:
     if crystal=='zincblende':
@@ -164,6 +217,20 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
                          (ty*(-1/np.sqrt(3)*(gamma2+2*gamma3))),ty*(-1/np.sqrt(3)*(gamma2+2*gamma3)),-1j*txy[0:-1]/2*(-1/np.sqrt(3)*(gamma2+2*gamma3)),
                          (1j*txy/2*(-1/np.sqrt(3)*(gamma2+2*gamma3))),1j*txy/2*(-1/np.sqrt(3)*(gamma2+2*gamma3)),-1j*txy[0:-1]/2*(-1/np.sqrt(3)*(gamma2+2*gamma3)))),
         concatenate((diagonal(m_s),diagonal(m_s,k=Ny),diagonal(m_s,k=-Ny),diagonal(m_s,k=1),diagonal(m_s,k=-1),diagonal(m_s,k=Ny+1),diagonal(m_s,k=Ny-1,init=1),diagonal(m_s,k=-Ny+1,init=1),diagonal(m_s,k=-Ny-1))))
+
+        if not(B==0):
+            B_m=((Mx-1j*My),(diagonal(m_s)))
+            B_s=(((Mx**2+My**2)*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3),(diagonal(m_s)))
+            B_k=(concatenate((-2*1j*My_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              2*1j*My_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              -2*1j*Mx_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              2*1j*Mx_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3)),concatenate((diagonal(m_s,k=1),diagonal(m_s,k=-1),diagonal(m_s,k=Ny),diagonal(m_s,k=-Ny))))
+            
+            B_s_m=(((Mx**2-My**2-2*1j*Mx*My)*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3),(diagonal(m_s)))
+            B_k_m=(concatenate((2*Mm_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              -2*Mm_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              -2*1j*Mm_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              2*1j*Mm_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3)),concatenate((diagonal(m_s,k=1),diagonal(m_s,k=-1),diagonal(m_s,k=Ny),diagonal(m_s,k=-Ny))))
 
 
         ### Upper diagonal:
@@ -221,6 +288,75 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
         args=np.append(args,np.sqrt(2)*T[0]*gamma3)
         index=(np.append(index[0],T[1][0]+5*m_s),np.append(index[1],T[1][1]+6*m_s))    
         
+#        # If there is magentic field:
+        if not(B==0):
+            ## row 0:
+            # (0,2)
+            args=np.append(args,P/np.sqrt(6)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+0),np.append(index[1],B_m[1][0]+2*m_s))
+            
+            # (0,4)
+            args=np.append(args,P/np.sqrt(2)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+0),np.append(index[1],B_m[1][1]+4*m_s))
+            
+            # (0,7)
+            args=np.append(args,P/np.sqrt(3)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+0),np.append(index[1],B_m[1][0]+7*m_s))
+            
+            ## row 1:
+            # (1,3)
+            args=np.append(args,-P/np.sqrt(2)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+m_s),np.append(index[1],B_m[1][0]+3*m_s))
+            
+            # (1,5)
+            args=np.append(args,-P/np.sqrt(6)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+m_s),np.append(index[1],B_m[1][1]+5*m_s))
+            
+            # (1,6)
+            args=np.append(args,P/np.sqrt(3)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+m_s),np.append(index[1],B_m[1][1]+6*m_s))
+            
+            ## row 2:
+            # (2,7)
+            args=np.append(args,-np.sqrt(2)*gamma3*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+2*m_s),np.append(index[1],B_s[1][1]+7*m_s)) 
+            args=np.append(args,-np.sqrt(2)*gamma3*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+2*m_s),np.append(index[1],B_k[1][1]+7*m_s))
+            
+                # (2,4)
+            args=np.append(args,-1/np.sqrt(3)*(gamma2+2*gamma3)*B_s_m[0])
+            index=(np.append(index[0],B_s_m[1][0]+2*m_s),np.append(index[1],B_s_m[1][1]+4*m_s)) 
+            args=np.append(args,-1/np.sqrt(3)*(gamma2+2*gamma3)*B_k_m[0])
+            index=(np.append(index[0],B_k_m[1][0]+2*m_s),np.append(index[1],B_k_m[1][1]+4*m_s)) 
+            
+            ## row 3:
+                # (3,5)
+            args=np.append(args,-1/np.sqrt(3)*(gamma2+2*gamma3)*B_s_m[0])
+            index=(np.append(index[0],B_s_m[1][0]+3*m_s),np.append(index[1],B_s_m[1][1]+5*m_s)) 
+            args=np.append(args,-1/np.sqrt(3)*(gamma2+2*gamma3)*B_k_m[0])
+            index=(np.append(index[0],B_k_m[1][0]+3*m_s),np.append(index[1],B_k_m[1][1]+5*m_s)) 
+            
+                # (3,6)
+            args=np.append(args,np.sqrt(2/3)*(gamma2+2*gamma3)*np.conj(B_s_m[0]))
+            index=(np.append(index[0],B_s_m[1][1]+3*m_s),np.append(index[1],B_s_m[1][0]+6*m_s)) 
+            args=np.append(args,np.sqrt(2/3)*(gamma2+2*gamma3)*np.conj(B_k_m[0]))
+            index=(np.append(index[0],B_k_m[1][1]+3*m_s),np.append(index[1],B_k_m[1][0]+6*m_s)) 
+            
+            ## row 4:
+                # (4,7)
+            args=np.append(args,-np.sqrt(2/3)*(gamma2+2*gamma3)*np.conj(B_s_m[0]))
+            index=(np.append(index[0],B_s_m[1][1]+4*m_s),np.append(index[1],B_s_m[1][0]+7*m_s)) 
+            args=np.append(args,-np.sqrt(2/3)*(gamma2+2*gamma3)*np.conj(B_k_m[0]))
+            index=(np.append(index[0],B_k_m[1][1]+4*m_s),np.append(index[1],B_k_m[1][0]+7*m_s)) 
+            
+            ## row 5:
+            # (5,6)
+            args=np.append(args,np.sqrt(2)*gamma3*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+5*m_s),np.append(index[1],B_s[1][1]+6*m_s)) 
+            args=np.append(args,np.sqrt(2)*gamma3*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+5*m_s),np.append(index[1],B_k[1][1]+6*m_s)) 
+
+        
         ### Lower diagonal:
         args=np.append(args,np.conj(args))
         index=(np.append(index[0],index[1]),np.append(index[1],index[0]))
@@ -257,6 +393,57 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
         # (7,7)
         args=np.append(args,-gamma1*T[0])
         index=(np.append(index[0],T[1][0]+7*m_s),np.append(index[1],T[1][1]+7*m_s)) 
+        
+        if not(B==0):
+            # (0,0)
+            args=np.append(args,B_s[0])
+            index=(np.append(index[0],B_s[1][0]+0),np.append(index[1],B_s[1][1]+0)) 
+            args=np.append(args,B_k[0])
+            index=(np.append(index[0],B_k[1][0]+0),np.append(index[1],B_k[1][1]+0)) 
+            
+            # (1,1)
+            args=np.append(args,B_s[0])
+            index=(np.append(index[0],B_s[1][0]+m_s),np.append(index[1],B_s[1][1]+m_s)) 
+            args=np.append(args,B_k[0])
+            index=(np.append(index[0],B_k[1][0]+m_s),np.append(index[1],B_k[1][1]+m_s)) 
+            
+            # (2,2)
+            args=np.append(args,(gamma3-gamma1)*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+2*m_s),np.append(index[1],B_s[1][1]+2*m_s)) 
+            args=np.append(args,(gamma3-gamma1)*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+2*m_s),np.append(index[1],B_k[1][1]+2*m_s)) 
+            
+            # (3,3)
+            args=np.append(args,-(gamma3+gamma1)*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+3*m_s),np.append(index[1],B_s[1][1]+3*m_s)) 
+            args=np.append(args,-(gamma3-gamma1)*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+3*m_s),np.append(index[1],B_k[1][1]+3*m_s)) 
+            
+            # (4,4)
+            args=np.append(args,-(gamma3+gamma1)*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+4*m_s),np.append(index[1],B_s[1][1]+4*m_s)) 
+            args=np.append(args,-(gamma3-gamma1)*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+4*m_s),np.append(index[1],B_k[1][1]+4*m_s)) 
+            
+            # (5,5)
+            args=np.append(args,(gamma3-gamma1)*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+5*m_s),np.append(index[1],B_s[1][1]+5*m_s)) 
+            args=np.append(args,(gamma3-gamma1)*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+5*m_s),np.append(index[1],B_k[1][1]+5*m_s)) 
+            
+            # (6,6)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+6*m_s),np.append(index[1],B_s[1][1]+6*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+6*m_s),np.append(index[1],B_k[1][1]+6*m_s)) 
+            
+            # (7,7)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+7*m_s),np.append(index[1],B_s[1][1]+7*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+7*m_s),np.append(index[1],B_k[1][1]+7*m_s)) 
+        
+
 
         ### Built matrix:
         H=scipy.sparse.csc_matrix((args,index),shape=(m_b,m_b))
@@ -438,9 +625,18 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
         G1=(concatenate((P/np.sqrt(6)*ay,-P/np.sqrt(6)*ay,-1j*P/np.sqrt(6)*ax,1j*P/np.sqrt(6)*ax)),
             concatenate((diagonal(m_s,k=1),diagonal(m_s,k=-1),diagonal(m_s,k=Ny),diagonal(m_s,k=-Ny))))
         
+        if not(B==0):
+            B_m=((Mx-1j*My),(diagonal(m_s)))
+            B_s=(((Mx**2+My**2)*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3),(diagonal(m_s)))
+            B_k=(concatenate((-2*1j*My_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              2*1j*My_ky*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              -2*1j*Mx_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3,
+                              2*1j*Mx_kx*cons.hbar**2/(2*m_eff*cons.m_e*1e-18)/cons.e*1e3)),concatenate((diagonal(m_s,k=1),diagonal(m_s,k=-1),diagonal(m_s,k=Ny),diagonal(m_s,k=-Ny))))
+            
+        
         ### Upper diagonal:
         ## row 0:
-        # (0,0)
+        # (0,2)
         args=G1[0]
         index=(G1[1][0]+0,G1[1][1]+2*m_s)
         
@@ -463,8 +659,37 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
         
         # (1,6)
         args=np.append(args,np.sqrt(2)*np.conj(G1[0]))
-        index=(np.append(index[0],G1[1][1]+m_s), np.append(index[1],G1[1][0]+6*m_s))       
+        index=(np.append(index[0],G1[1][1]+m_s), np.append(index[1],G1[1][0]+6*m_s)) 
         
+        
+        ## If there is magentic field:
+        if not(B==0):
+            ## row 0:
+            # (0,2)
+            args=np.append(args,P/np.sqrt(6)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+0),np.append(index[1],B_m[1][0]+2*m_s))
+            
+            # (0,4)
+            args=np.append(args,P/np.sqrt(2)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+0),np.append(index[1],B_m[1][1]+4*m_s))
+            
+            # (0,7)
+            args=np.append(args,P/np.sqrt(3)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+0),np.append(index[1],B_m[1][0]+7*m_s))
+            
+            ## row 1:
+            # (1,3)
+            args=np.append(args,-P/np.sqrt(2)*np.conj(B_m[0]))
+            index=(np.append(index[0],B_m[1][1]+m_s),np.append(index[1],B_m[1][0]+3*m_s))
+            
+            # (1,5)
+            args=np.append(args,-P/np.sqrt(6)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+m_s),np.append(index[1],B_m[1][1]+5*m_s))
+            
+            # (1,6)
+            args=np.append(args,P/np.sqrt(3)*B_m[0])
+            index=(np.append(index[0],B_m[1][0]+m_s),np.append(index[1],B_m[1][1]+6*m_s))
+
         
         ### Lower diagonal:
         args=np.append(args,np.conj(args))
@@ -502,6 +727,56 @@ def Kane_2D_builder(N,dis,mu,mesh=0,sparse='yes',section='rectangular',params={}
         # (7,7)
         args=np.append(args,-gamma1*T[0])
         index=(np.append(index[0],T[1][0]+7*m_s),np.append(index[1],T[1][1]+7*m_s)) 
+        
+        if not(B==0):
+            # (0,0)
+            args=np.append(args,gamma0*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+0),np.append(index[1],B_s[1][1]+0)) 
+            args=np.append(args,gamma0*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+0),np.append(index[1],B_k[1][1]+0)) 
+            
+            # (1,1)
+            args=np.append(args,gamma0*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+m_s),np.append(index[1],B_s[1][1]+m_s)) 
+            args=np.append(args,gamma0*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+m_s),np.append(index[1],B_k[1][1]+m_s)) 
+            
+            # (2,2)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+2*m_s),np.append(index[1],B_s[1][1]+2*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+2*m_s),np.append(index[1],B_k[1][1]+2*m_s)) 
+            
+            # (3,3)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+3*m_s),np.append(index[1],B_s[1][1]+3*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+3*m_s),np.append(index[1],B_k[1][1]+3*m_s)) 
+            
+            # (4,4)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+4*m_s),np.append(index[1],B_s[1][1]+4*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+4*m_s),np.append(index[1],B_k[1][1]+4*m_s)) 
+            
+            # (5,5)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+5*m_s),np.append(index[1],B_s[1][1]+5*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+5*m_s),np.append(index[1],B_k[1][1]+5*m_s)) 
+            
+            # (6,6)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+6*m_s),np.append(index[1],B_s[1][1]+6*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+6*m_s),np.append(index[1],B_k[1][1]+6*m_s)) 
+            
+            # (7,7)
+            args=np.append(args,-gamma1*B_s[0])
+            index=(np.append(index[0],B_s[1][0]+7*m_s),np.append(index[1],B_s[1][1]+7*m_s)) 
+            args=np.append(args,-gamma1*B_k[0])
+            index=(np.append(index[0],B_k[1][0]+7*m_s),np.append(index[1],B_k[1][1]+7*m_s)) 
+        
 
         ### Built matrix:
         H=scipy.sparse.csc_matrix((args,index),shape=(m_b,m_b))

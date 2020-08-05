@@ -3,15 +3,14 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
               "H_class/Lutchyn_Oreg/builders" submodule
                       
-This sub-package solves Lutchyn-Oreg Hamiltonians for nanowires. Please, visit
-http://www.samdaz/MajoranaNanowires.com for more details.
+This sub-package solves Lutchyn-Oreg Hamiltonians.
 
 ###############################################################################
            
@@ -21,17 +20,14 @@ http://www.samdaz/MajoranaNanowires.com for more details.
 #%%############################################################################
 ########################    Required Packages      ############################   
 ###############################################################################
-
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 import scipy.linalg
 import scipy.constants as cons
 
-from MajoranaNanowires.Functions import order_eig, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular
-
-
-
+from MajoranaNanowires.Functions import order_eig, diagonal
+from MajoranaNanowires.Functions import H_rec2shape, U_shape2rec
 
 
 #%%
@@ -569,7 +565,9 @@ def LO_2D_solver(H,N,dis,m_eff=0.023,
     else: 
         dis_y, dis_z = dis[0], dis[1]
         
-    m = int(4 * Ny * Nz)
+    m = int(4 * Ny * Nz)  
+    if (np.isscalar(section) and not(section=='rectangular')) or not(np.isscalar(section)):
+        m_hex=H_rec2shape(0,section,N,dis,BdG='yes',output='m')
         
     if (space=='momentum'):
         n_k=len(k_vec)
@@ -675,6 +673,7 @@ def LO_2D_solver(H,N,dis,m_eff=0.023,
         
     #Diagonalize the Hamiltonian:      
     if sparse=='no':
+        #####revisar
         if space=='position':
             E[0:int(m/2)], U[0:m, 0:int(m/2)] = scipy.linalg.eigh(H+H_add, lower=False,eigvals=(2*N,4*N-1))
             E[int(m/2):m]=-E[0:int(m/2)]
@@ -704,11 +703,18 @@ def LO_2D_solver(H,N,dis,m_eff=0.023,
                     H_add[diagonal(int(m/2)*(j+1),init=int(m/2)*j)] -= -1*aRy*k_vec[i]
                     H_add[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=1,step=2)] -= -1j*(-1)**(j)*aRz*k_vec[i]
                     H_add[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-1,step=2)] -= 1j*(-1)**(j)*aRz*k_vec[i]
-        
+        #####
     else:
         if space=='position':
-            E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig,sigma=0, which='LM',tol=1e-4)
-            E, U=order_eig(E, U,sparse='yes')
+            if np.isscalar(section) and section=='rectangular':
+                E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig,sigma=0, which='LM',tol=1e-4)
+                E, U=order_eig(E, U,sparse='yes')
+            
+            else:
+                H=H_rec2shape(H+H_add,section,N,dis,BdG='yes',output='H',m=m_hex)
+                E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig, which='LM',sigma=0,tol=1e-9)
+                E,U_hex=order_eig(E,U_hex,sparse='yes',BdG='yes')
+                U=U_shape2rec(U_hex,section,N,dis,BdG='yes')
 
         elif space=='momentum':
             H_k= scipy.sparse.dok_matrix((m,m),dtype=complex)
@@ -723,8 +729,16 @@ def LO_2D_solver(H,N,dis,m_eff=0.023,
                     H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=1,step=2)] += -1j*(-1)**(j)*aRz*k_vec[i]
                     H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-1,step=2)] += 1j*(-1)**(j)*aRz*k_vec[i]
                 
-                E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig,sigma=0, which='LM',tol=1e-5)
-                E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='yes')
+                if np.isscalar(section) and section=='rectangular':
+                    E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig,sigma=0, which='LM',tol=1e-5)
+                    E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='yes')
+                    
+                else:
+                    H_k=H_rec2shape(H_k,section,N,dis,BdG='yes',output='H',m=m_hex)
+                    E[:,i], U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='LM',sigma=0,tol=1e-9)
+                    E[:,i],U_hex=order_eig(E[:,i],U_hex,sparse='yes',BdG='yes')
+                    U[:,:,i]=U_shape2rec(U_hex,section,N,dis,BdG='yes')
+
 
     return (E), (U)
 
@@ -735,7 +749,6 @@ def LO_2D_solver(H,N,dis,m_eff=0.023,
 #%%
 def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
                            mu=0,B=0,aR=0,
-                           SC={},
                            space='position',k_vec=0,
                            sparse='yes',n_eig=None,near=None,
                            section='rectangular'):
@@ -848,6 +861,8 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
         dis_y, dis_z = dis[0], dis[1]
         
     m = int(2 * Ny * Nz)
+    if (np.isscalar(section) and not(section=='rectangular')) or not(np.isscalar(section)):
+        m_hex=H_rec2shape(0,section,N,dis,BdG='no',output='m')
         
     if (space=='momentum'):
         n_k=len(k_vec)
@@ -893,10 +908,7 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
         aRy=aR[1]
         aRz=aR[2]
 
-    #Store matrices:
-    if section=='hexagonal':
-        m_hex=H_rectangular2hexagonal(0,N,dis,BdG='no',output='m_hex')
-        
+    #Store matrices:        
     if space=='position':
         E = np.empty([int(n_eig)])
         U = np.empty([m,int(n_eig)],dtype=complex)
@@ -948,16 +960,16 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
     #Diagonalize the Hamiltonian:      
     if sparse=='no':
         if space=='position':
-            if section=='rectangular':
+            if np.isscalar(section) and section=='rectangular':
                 E, U = scipy.linalg.eigh(H+H_add, lower=False)
                 E,U=order_eig(E,U,sparse='no',BdG='no')
                 
-            elif section=='hexagonal':
-                H=H_rectangular2hexagonal(H+H_add,N,dis,BdG='no',output='H',m=m_hex,sparse='no')
+            else:
+                H=H_rec2shape(H+H_add,section,N,dis,BdG='no',output='H',m=m_hex)
                 E, U_hex = scipy.linalg.eigh(H, lower=False)
                 E,U_hex=order_eig(E,U_hex,sparse='no',BdG='no')
-                U=U_hexagonal2rectangular(U_hex,N,dis,BdG='no',space='position')
-            
+                U=U_shape2rec(U_hex,section,N,dis,BdG='no')
+        
         elif space=='momentum':
             aRy, aRz = aRy.flatten(), aRz.flatten()
             aRy=np.repeat(aRy,2)
@@ -967,9 +979,16 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
                 H_add[diagonal(m)] += -1*aRy*k_vec[i]
                 H_add[diagonal(m,k=1,step=2)] += -1j*aRz*k_vec[i]
                 H_add[diagonal(m,k=-1,step=2)] += 1j*aRz*k_vec[i]
-
-                E[:,i],U[:,:,i] = scipy.linalg.eigh(H+H_add, lower=False)
-                E[:,i],U[:,:,i]=order_eig(E[:,i],U[:,:,i],sparse='no',BdG='no')
+                
+                if np.isscalar(section) and section=='rectangular':
+                    E[:,i],U[:,:,i] = scipy.linalg.eigh(H+H_add, lower=False)
+                    E[:,i],U[:,:,i]=order_eig(E[:,i],U[:,:,i],sparse='no',BdG='no')
+                    
+                else:                    
+                    H_k=H_rec2shape(H+H_add,section,N,dis,BdG='no',output='H',m=m_hex)
+                    E[:,i], U_hex = scipy.linalg.eigsh(H_k, lower=False)
+                    E[:,i],U_hex=order_eig(E[:,i],U_hex,sparse='no',BdG='no')
+                    U[:,:,i]=U_shape2rec(U_hex,section,N,dis,BdG='no')
                 
                 H_add[diagonal(m)] -= np.repeat(cons.hbar**2/(2*m_eff*cons.m_e*(1e-9)**2)/cons.e*1e3*k_vec[i]**2,2)
                 H_add[diagonal(m)] -= -1*aRy*k_vec[i]
@@ -978,21 +997,21 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
                 
     else:
         if space=='position':
-            if section=='rectangular':
+            if np.isscalar(section) and section=='rectangular':
                 if not(near==None):
                     E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig, which='LA',sigma=near,tol=1e-9)
                 else:
                     E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig, which='SA',tol=1e-9)
                 E,U=order_eig(E,U,sparse='yes',BdG='no')
                 
-            elif section=='hexagonal':
-                H=H_rectangular2hexagonal(H+H_add,N,dis,BdG='no',output='H',m=m_hex)
+            else:
+                H=H_rec2shape(H+H_add,section,N,dis,BdG='no',output='H',m=m_hex)
                 if not(near==None):
                     E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig, which='LA',sigma=near,tol=1e-9)
                 else:
                     E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig, which='SA',tol=1e-9)
                 E,U_hex=order_eig(E,U_hex,sparse='yes',BdG='no')
-                U=U_hexagonal2rectangular(U_hex,N,dis,BdG='no',space='position')
+                U=U_shape2rec(U_hex,section,N,dis,BdG='no')
                 
         elif space=='momentum':
             H_k= scipy.sparse.dok_matrix((m,m),dtype=complex)
@@ -1007,20 +1026,19 @@ def LO_2D_solver_NoSC(H,N,dis,m_eff=0.023,
                 H_k[diagonal(m,k=1,step=2)] += -1j*aRz*k_vec[i]
                 H_k[diagonal(m,k=-1,step=2)] += 1j*aRz*k_vec[i]
                 
-                if section=='hexagonal':                    
-                    H_k=H_rectangular2hexagonal(H_k,N,dis,BdG='no',output='H',m=m_hex)
-                        
+                if np.isscalar(section) and section=='rectangular':
+                    E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-5)
+                    E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='yes',BdG='no')
+                    
+                else:                    
+                    H_k=H_rec2shape(H_k,section,N,dis,BdG='no',output='H',m=m_hex)
                     if not(near==None):
                         E[:,i], U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='LA',sigma=near,tol=1e-4)
                     else:
                         E[:,i], U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-4)
-                    
                     E[:,i],U_hex=order_eig(E[:,i],U_hex,sparse='yes',BdG='no')
-                    U[:,:,i]=U_hexagonal2rectangular(U_hex,N,dis,BdG='no',space='position')
+                    U[:,:,i]=U_shape2rec(U_hex,section,N,dis,BdG='no')
                 
-                elif section=='rectangular':
-                    E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-5)
-                    E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='yes',BdG='no')
                 
     return (E), (U)
 
@@ -1138,6 +1156,8 @@ def LO_3D_solver(H,N,dis,
         dis_x, dis_y, dis_z = dis[0], dis[1], dis[2]
         
     m = int(4 * Nx * Ny * Nz)
+    if (np.isscalar(section) and not(section=='rectangular')) or not(np.isscalar(section)):
+        m_hex=H_rec2shape(0,section,N,dis,BdG='yes',output='m')
         
     if (space=='momentum'):
         n_k=len(k_vec)
@@ -1184,23 +1204,12 @@ def LO_3D_solver(H,N,dis,
 
     #Store matrices:
     if space=='position':
-        if section=='rectangular':
-            E = np.empty([int(n_eig)])
-            U = np.empty([m,int(n_eig)],dtype=complex)
-        elif section=='hexagonal':
-            m_hex=H_rectangular2hexagonal(0,N,dis,BdG='yes',output='m_hex')
-            E = np.empty([int(n_eig)])
-            U = np.empty([m,int(n_eig)],dtype=complex)
-            U_hex = np.empty([m_hex,int(n_eig)],dtype=complex)
+        E = np.empty([int(n_eig)])
+        U = np.empty([m,int(n_eig)],dtype=complex)
     elif space=='momentum':
-        if section=='rectangular':
-            E = np.empty([int(n_eig),n_k])
-            U = np.empty([m,int(n_eig),n_k],dtype=complex)
-        elif section=='hexagonal':
-            m_hex=H_rectangular2hexagonal(0,N,dis,BdG='yes',output='m_hex')
-            E = np.empty([int(n_eig),n_k])
-            U = np.empty([m,int(n_eig),n_k],dtype=complex)
-            U_hex = np.empty([m_hex,int(n_eig),n_k],dtype=complex)
+        E = np.empty([int(n_eig),n_k])
+        U = np.empty([m,int(n_eig),n_k],dtype=complex)
+
     
     if sparse=='no':
         H_add=np.zeros((m,m),dtype=complex)
@@ -1260,19 +1269,13 @@ def LO_3D_solver(H,N,dis,
         
     #Diagonalize the Hamiltonian:      
     if sparse=='no':
+        ######### revisar
         if space=='position':
-            if section=='hexagonal':
-                H=H_rectangular2hexagonal(H+H_add,N,dis,BdG='yes',output='H',m=m_hex,sparse='no')
-                E, U_hex = scipy.linalg.eigh(H,lower=False)
-                E, U_hex=order_eig(E, U_hex,sparse='no')
-                U=U_hexagonal2rectangular(U_hex,N,dis,BdG='yes',space='position')
-            
-            else:
-                E[0:int(m/2)], U[0:m, 0:int(m/2)] = scipy.linalg.eigh(H+H_add, lower=False,eigvals=(2*N,4*N-1))
-                E[int(m/2):m]=-E[0:int(m/2)]
-                U[0:int(m/2), int(m/2):m] = U[int(m/2):m, 0:int(m/2)]
-                U[int(m/2):m, int(m/2):m] = U[0:int(m/2), 0:int(m/2)]
-                E,U=order_eig(E,U,sparse='no')
+            E[0:int(m/2)], U[0:m, 0:int(m/2)] = scipy.linalg.eigh(H+H_add, lower=False,eigvals=(2*N,4*N-1))
+            E[int(m/2):m]=-E[0:int(m/2)]
+            U[0:int(m/2), int(m/2):m] = U[int(m/2):m, 0:int(m/2)]
+            U[int(m/2):m, int(m/2):m] = U[0:int(m/2), 0:int(m/2)]
+            E,U=order_eig(E,U,sparse='no')
             
         elif space=='momentum':
             for i in range(n_k):
@@ -1289,42 +1292,43 @@ def LO_3D_solver(H,N,dis,
                 U[0:int(m/2), int(m/2):m,i] = U[int(m/2):m, 0:int(m/2),i]
                 U[int(m/2):m, int(m/2):m,i] = U[0:int(m/2), 0:int(m/2),i]
                 E[:,i],U[:,:,i]=order_eig(E[:,i],U[:,:,i],sparse='no')
+        #########
         
     else:
         if space=='position':
-            if section=='hexagonal':
-                H=H_rectangular2hexagonal(H+H_add,N,dis,BdG='yes',output='H',m=m_hex)
-
-                E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig,sigma=0, which='LM',tol=1e-4)
-                E, U_hex=order_eig(E, U_hex,sparse='yes')
-                U=U_hexagonal2rectangular(U_hex,N,dis,BdG='yes',space='position')
-            
-            else:
+            if np.isscalar(section) and section=='rectangular':
                 E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig,sigma=0, which='LM',tol=1e-4)
                 E, U=order_eig(E, U,sparse='yes') 
+                
+            else:
+                H=H_rec2shape(H+H_add,section,N,dis,BdG='yes',output='H',m=m_hex)
+                E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig,sigma=0, which='LM',tol=1e-4)
+                E, U_hex=order_eig(E, U_hex,sparse='yes')
+                U=U_shape2rec(U_hex,section,N,dis,BdG='yes')
                 
         elif space=='momentum':
             H_k= scipy.sparse.dok_matrix((m,m),dtype=complex)
             for i in range(n_k):
                 H_k = (H+H_add).copy()
                 for j in range(2):
-                    H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=m-2*Ny*Nz)] = (-1j*aRy_kx)*np.exp(-1j*k_vec[i]*Nx*(-1)**(i))
-                    H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-m+2*Ny*Nz)] = (+1j*aRy_kx)*np.exp(1j*k_vec[i]*Nx*(-1)**(i))
-                    H_k[diagonal(int(m/2)*(j+1),k=m-2*Ny*Nz-1,step=2,init=1+int(m/2)*j)] = (-1)**(i)*(-aRz_kx)*np.exp(-1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
-                    H_k[diagonal(int(m/2)*(j+1),k=-m+2*Ny*Nz+1,step=2,init=1+int(m/2)*j)] = (-1)**(i)*(-aRz_kx)*np.exp(1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
-                    H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=m+1-2*Ny*Nz,step=2)] = (-1)**(i)*(aRz_kx)*np.exp(-1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
-                    H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-m-1+2*Ny*Nz,step=2)] = (-1)**(i)*(aRz_kx)*np.exp(1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
-
-                if section=='hexagonal':
-                    H_k=H_rectangular2hexagonal(H_k,N,dis,BdG='yes',output='H',m=m_hex)
-
-                    E[:,i], U_hex[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig,sigma=0, which='LM',tol=1e-5)
-                    E[:,i], U_hex[:,:,i]=order_eig(E[:,i], U_hex[:,:,i],sparse='yes')
-                    U=U_hexagonal2rectangular(U_hex,N,dis,BdG='yes',space='momentum')
-                
-                else:
+                    if not((aRy==0).all()):
+                        H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=m-2*Ny*Nz)] = (-1j*aRy_kx)*np.exp(-1j*k_vec[i]*Nx*(-1)**(i))
+                        H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-m+2*Ny*Nz)] = (+1j*aRy_kx)*np.exp(1j*k_vec[i]*Nx*(-1)**(i))
+                    if not((aRz==0).all()):
+                        H_k[diagonal(int(m/2)*(j+1),k=m-2*Ny*Nz-1,step=2,init=1+int(m/2)*j)] = (-1)**(i)*(-aRz_kx)*np.exp(-1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
+                        H_k[diagonal(int(m/2)*(j+1),k=-m+2*Ny*Nz+1,step=2,init=1+int(m/2)*j)] = (-1)**(i)*(-aRz_kx)*np.exp(1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
+                        H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=m+1-2*Ny*Nz,step=2)] = (-1)**(i)*(aRz_kx)*np.exp(-1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
+                        H_k[diagonal(int(m/2)*(j+1),init=int(m/2)*j,k=-m-1+2*Ny*Nz,step=2)] = (-1)**(i)*(aRz_kx)*np.exp(1j*(-1)**(i)*k_vec[i]*Nx*(-1)**(i))
+                    
+                if np.isscalar(section) and section=='rectangular':
                     E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig,sigma=0, which='LM',tol=1e-5)
                     E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='yes')
+                    
+                else:
+                    H_k=H_rec2shape(H_k,section,N,dis,BdG='yes',output='H',m=m_hex)
+                    E[:,i], U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig,sigma=0, which='LM',tol=1e-5)
+                    E[:,i], U_hex =order_eig(E[:,i], U_hex,sparse='yes')
+                    U[:,:,i]=U_shape2rec(U_hex,section,N,dis,BdG='yes')
 
     return (E), (U)
 
@@ -1436,7 +1440,9 @@ def LO_3D_solver_NoSC(H,N,dis,
         dis_x, dis_y, dis_z = dis[0], dis[1], dis[2]
         
     m = int(2 * Nx * Ny * Nz)
-        
+    if (np.isscalar(section) and not(section=='rectangular')) or not(np.isscalar(section)):
+        m_hex=H_rec2shape(0,section,N,dis,BdG='no',output='m')
+
     if (space=='momentum'):
         n_k=len(k_vec)
         
@@ -1478,23 +1484,11 @@ def LO_3D_solver_NoSC(H,N,dis,
 
     #Store matrices:
     if space=='position':
-        if section=='rectangular':
-            E = np.empty([int(n_eig)])
-            U = np.empty([m,int(n_eig)],dtype=complex)
-        elif section=='hexagonal':
-            m_hex=H_rectangular2hexagonal(0,N,dis,BdG='no',output='m_hex')
-            E = np.empty([int(n_eig)])
-            U = np.empty([m,int(n_eig)],dtype=complex)
-            U_hex = np.empty([m_hex,int(n_eig)],dtype=complex)
+        E = np.empty([int(n_eig)])
+        U = np.empty([m,int(n_eig)],dtype=complex)
     elif space=='momentum':
-        if section=='rectangular':
-            E = np.empty([int(n_eig),n_k])
-            U = np.empty([m,int(n_eig),n_k],dtype=complex)
-        elif section=='hexagonal':
-            m_hex=H_rectangular2hexagonal(0,N,dis,BdG='no',output='m_hex')
-            E = np.empty([int(n_eig),n_k])
-            U = np.empty([m,int(n_eig),n_k],dtype=complex)
-            U_hex = np.empty([m_hex,int(n_eig),n_k],dtype=complex)
+        E = np.empty([int(n_eig),n_k])
+        U = np.empty([m,int(n_eig),n_k],dtype=complex)
     
     if sparse=='no':
         H_add=np.zeros((m,m),dtype=complex)
@@ -1547,6 +1541,7 @@ def LO_3D_solver_NoSC(H,N,dis,
         
     #Diagonalize the Hamiltonian:      
     if sparse=='no':
+        ###### revisar:
         if space=='position':
             E, U = scipy.linalg.eigh(H+H_add, lower=False)
             E, U=order_eig(E, U,sparse='no') 
@@ -1562,34 +1557,44 @@ def LO_3D_solver_NoSC(H,N,dis,
                 
                 E[:,i], U[:,:,i]= scipy.linalg.eigh(H[:,:,i]+H_add, lower=False)
                 E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='no') 
+        ########
             
     else:
         if space=='position':
-            E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig, which='SA',tol=1e-5)
-            E, U=order_eig(E, U,sparse='yes',BdG='no')
+            if np.isscalar(section) and section=='rectangular':
+                E, U = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H+H_add),k = n_eig, which='SA',tol=1e-5)
+                E, U=order_eig(E, U,sparse='yes',BdG='no')
+            else:
+                H=H_rec2shape(H+H_add,section,N,dis,BdG='no',output='H',m=m_hex)
+                E, U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H),k = n_eig, which='SA',tol=1e-5)
+                E, U_hex=order_eig(E, U_hex,sparse='yes',BdG='no')
+                U=U_shape2rec(U_hex,section,N,dis,BdG='no')
+
 
         elif space=='momentum':
             H_k= scipy.sparse.dok_matrix((m,m),dtype=complex)
             for i in range(n_k):
                 H_k = (H+H_add).copy()
-                H_k[diagonal(m,k=m-2*Ny*Nz)] = (-1j*aRy_kx)*np.exp(-1j*k_vec[i]*Nx)
-                H_k[diagonal(m,k=-m+2*Ny*Nz)] = (+1j*aRy_kx)*np.exp(1j*k_vec[i]*Nx)
-                H_k[diagonal(m,k=m-2*Ny*Nz-1,step=2,init=1)] = (-aRz_kx)*np.exp(-1j*k_vec[i]*Nx)
-                H_k[diagonal(m,k=-m+2*Ny*Nz+1,step=2,init=1)] = (-aRz_kx)*np.exp(1j*k_vec[i]*Nx)
-                H_k[diagonal(m,k=m+1-2*Ny*Nz,step=2)] = (aRz_kx)*np.exp(-1j*k_vec[i]*Nx)
-                H_k[diagonal(m,k=-m-1+2*Ny*Nz,step=2)] = (aRz_kx)*np.exp(1j*k_vec[i]*Nx)
+                if not((aRy==0).all()):
+                    H_k[diagonal(m,k=m-2*Ny*Nz)] = (-1j*aRy_kx)*np.exp(-1j*k_vec[i]*Nx)
+                    H_k[diagonal(m,k=-m+2*Ny*Nz)] = (+1j*aRy_kx)*np.exp(1j*k_vec[i]*Nx)
+                if not((aRz==0).all()):
+                    H_k[diagonal(m,k=m-2*Ny*Nz-1,step=2,init=1)] = (-aRz_kx)*np.exp(-1j*k_vec[i]*Nx)
+                    H_k[diagonal(m,k=-m+2*Ny*Nz+1,step=2,init=1)] = (-aRz_kx)*np.exp(1j*k_vec[i]*Nx)
+                    H_k[diagonal(m,k=m+1-2*Ny*Nz,step=2)] = (aRz_kx)*np.exp(-1j*k_vec[i]*Nx)
+                    H_k[diagonal(m,k=-m-1+2*Ny*Nz,step=2)] = (aRz_kx)*np.exp(1j*k_vec[i]*Nx)
                 
-                if section=='hexagonal':
-                    H_k=H_rectangular2hexagonal(H_k,N,dis,BdG='no',output='H',m=m_hex)
-
-                    E[:,i], U_hex[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-5)
-                    E[:,i], U_hex[:,:,i]=order_eig(E[:,i], U_hex[:,:,i],sparse='no',BdG='no')
-                    U[:,:,i]=U_hexagonal2rectangular(U_hex[:,:,i],N,dis,BdG='no')
-                
-                elif section=='rectangular':
+                if np.isscalar(section) and section=='rectangular':
                     E[:,i], U[:,:,i] = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-5)
                     E[:,i], U[:,:,i]=order_eig(E[:,i], U[:,:,i],sparse='no',BdG='no')
-            
+
+                else:
+                    H_k=H_rec2shape(H_k,section,N,dis,BdG='no',output='H',m=m_hex)
+                    E[:,i], U_hex = scipy.sparse.linalg.eigsh(scipy.sparse.csc_matrix(H_k),k = n_eig, which='SA',tol=1e-5)
+                    E[:,i], U_hex =order_eig(E[:,i], U_hex,sparse='yes',BdG='no')
+                    U[:,:,i]=U_shape2rec(U_hex,section,N,dis,BdG='no')
+
+                            
     return (E), (U)
 
 
@@ -1783,17 +1788,14 @@ def LO_3D_solver_MO(H,N,dis,
         elif i>(Nx-N_dif):
             E_2D[i*n_orb:(i+1)*n_orb], U_2D[2 * Ny * Nz * i:2 * Ny * Nz * (i+1),i*n_orb:(i+1)*n_orb] = E_2D[(Nx-N_dif)*n_orb:((Nx-N_dif)+1)*n_orb], U_2D[2 * Ny * Nz * (Nx-N_dif):2 * Ny * Nz * ((Nx-N_dif)+1),(Nx-N_dif)*n_orb:((Nx-N_dif)+1)*n_orb]
 
+
     #Obtain the effective multiorbital 1D Hamiltonian:
     H_1D=(U_2D.transpose().conjugate()).dot(H_3D.dot(U_2D))+scipy.sparse.diags(E_2D)
-#    
-#    #Include the self-consistent SOC:
-#    if (isinstance(aR,str) or isinstance(aR,dict)):
-#        H_1D+=H_SO(N,dis,E_2D,U_2D,mu,params=aR,Nxp=Nxp)
-        
+
     #Include the SC:    
     if BdG=='yes':
         H_1D_SC=((U_2D.transpose().conjugate()).dot(H_SC.dot(U_2D.conjugate())))
-        H_1D=scipy.sparse.vstack([scipy.sparse.hstack([H_1D,H_1D_SC]),scipy.sparse.hstack([-np.conj(H_1D_SC),-np.conj(H_1D)])])
+        H_1D=scipy.sparse.vstack([scipy.sparse.hstack([H_1D,H_1D_SC]),scipy.sparse.hstack([np.transpose(np.conj(H_1D_SC)),-np.conj(H_1D)])])
     
     #Diagonalize the effective 1D Hamiltonian:      
     if BdG=='no':
@@ -1813,61 +1815,3 @@ def LO_3D_solver_MO(H,N,dis,
         
     return (E_3D,U_3D)
 
-#
-##%%
-#def H_SO(N,dis,E,U,phi_lat,params={},Nxp=None):
-#    
-#    if isinstance(params,str):
-#        if params=='InAs' or params=='InAs-minimal':
-#            P, Eg, Eso = 919.7, 417, 390
-#        elif params=='InAs-W':
-#            P, Eg, Eso = 723, 467, 352.7
-#        elif params=='InAs-ZB':
-#            P, Eg, Eso = 1252, 417, 390
-#            
-#    elif isinstance(params,dict):
-#        P, Eg, Eso = params['P'], params['Eg'], params['Eso']
-#    
-#    n_eig=int(len(E)/N[0])
-#    
-#    if not(Nxp==None or Nxp==N[0]):
-#        N_dif=np.int((N[0]-Nxp)/2)
-#    else:
-#        Nxp, N_dif = N[0], 0  
-#        
-#    m=2*N[1]*N[2]
-#
-#        
-#    aR=np.zeros((n_eig*N[0]),dtype=complex)    
-#    for i in range(N[0]):
-#        if (i>=N_dif) and (i<=N[0]-N_dif):
-#            for j in range(n_eig):
-#                alpha=-(delta(Eg+phi_lat[i,:,:]+E[j+i*n_eig])*P**2/3/(Eg+phi_lat[i,:,:]+E[j+i*n_eig])**2-delta(Eg+Eso+phi_lat[i,:,:]+E[j+i*n_eig])*P**2/3/(Eg+Eso+phi_lat[i,:,:]+E[j+i*n_eig])**2)*np.gradient(phi_lat[i,:,:],dis[1],dis[2],edge_order=2)
-##                alpha*=100
-#                
-#                alpha_y, alpha_z = np.repeat(alpha[0].flatten(),2), alpha[1].flatten()
-#                alpha_y[1::2]=-alpha_y[0::2]
-#    
-#                M=scipy.sparse.dok_matrix((m,m),dtype=complex)
-#                M[diagonal(m)], M[diagonal(m,k=1,step=2)], M[diagonal(m,k=-1,step=2)] = alpha_y, 1j*alpha_z, -1j*alpha_z
-#                
-#                aR[j+i*n_eig]=((U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+i*n_eig].transpose().conj()).dot(M.dot(U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+i*n_eig])))[0,0]        
-##                if i==N[0]:
-##                    aR[j+i*n_eig]=((U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+(i-1)*n_eig].transpose().conj()).dot(M.dot(U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+i*n_eig])))[0,0]
-##                else:
-##                    aR[j+i*n_eig]=((U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+i*n_eig].transpose().conj()).dot(M.dot(U[2*N[1]*N[2]*i:2*N[1]*N[2]*(i+1),j+(i+1)*n_eig])))[0,0]
-#
-#
-#        if (i==N_dif):
-#            for k in range(0,N_dif):
-#                aR[k*n_eig:(k+1)*n_eig]=aR[N_dif*n_eig:(N_dif+1)*n_eig]
-#        
-#        if (i>N[0]-N_dif):
-#            aR[i*n_eig:(i+1)*n_eig]=aR[(N[0]-N_dif)*n_eig:(N[0]-N_dif+1)*n_eig]
-#
-#    H_SO=scipy.sparse.dok_matrix((N[0]*n_eig,N[0]*n_eig),dtype=complex)
-#    H_SO[diagonal(n_eig*N[0],k=n_eig)]=-1j*(aR[n_eig::]+aR[:-n_eig])/2/(2*dis[0])
-#    H_SO[diagonal(n_eig*N[0],k=-n_eig)]=1j*(aR[n_eig::]+aR[:-n_eig])/2/(2*dis[0])
-#    
-#
-#    return (H_SO)

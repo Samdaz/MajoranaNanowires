@@ -3,15 +3,14 @@
 ###############################################################################
 
                   "MajoranaNanowire" Python3 Module
-                             v 1.0 (2018)
+                             v 1.0 (2020)
                 Created by Samuel D. Escribano (2018)
 
 ###############################################################################
                 
                   "H_class/Kane/solvers" submodule
                       
-This sub-package solves 8-band k.p Hamiltonians for infinite nanowires. Please,
-visit http://www.samdaz/MajoranaNanowires.com for more details.
+This sub-package solves 8-band k.p Hamiltonians for infinite nanowires.
 
 ###############################################################################
            
@@ -27,15 +26,69 @@ import scipy.sparse.linalg
 import scipy.linalg
 import scipy.constants as cons
 
-from MajoranaNanowires.Functions import order_eig, length, diagonal, H_rectangular2hexagonal, U_hexagonal2rectangular, concatenate
-
-
-
+from MajoranaNanowires.Functions import diagonal, concatenate
 
 
 #%%
-
-def Kane_2D_solver(H,N,dis,mu,k_vec,mesh=0,sparse='yes',n_eig=0,section='rectangular',params={},near=0,crystal='zincblende'):
+def Kane_2D_solver(H,N,dis,mu,k_vec,
+                   params={},crystal='zincblende',
+                   mesh=0,
+                   sparse='yes',n_eig=0,near=0,
+                   section='rectangular'):
+    
+    """
+    2D 8-band k.p Hamiltonian builder. It obtaines the Hamiltoninan for a 3D
+    wire which is infinite in one direction, decribed using 8-band k.p theory.
+    
+    Parameters
+    ----------
+        N: int or arr
+            Number of sites.
+            
+        dis: int or arr
+            Distance (in nm) between sites.
+            
+        mu: float or arr
+            Chemical potential. If it is an array, each element is the on-site
+            chemical potential.
+            
+        k_vec: float or arr
+            Momentum along the wire's direction.
+            
+        params: dic or str
+            Kane/Luttinger parameters of the k.p Hamiltonian. 'InAs', 'InSb',
+            'GaAs' and 'GaSb' selects the defult parameters for these materials.
+            
+        crystal: {'zincblende','wurtzite','minimal'}
+            Crystal symmetry along the nanowire growth. 'minimal' is a minimal
+            model in which the intra-valence band coupling are ignored.
+            
+        mesh: mesh
+            If the discretization is homogeneous, mesh=0. Otherwise, mesh
+            provides a mesh with the position of the sites in the mesh.
+            
+        sparse: {"yes","no"}
+            Sparsety of the built Hamiltonian. "yes" builds a dok_sparse matrix, 
+            while "no" builds a dense matrix.
+            
+        n_eig: int
+            Number of sub-band to compute.
+            
+        near: float
+            Above which energy must be found the energies of the Hamiltonian.
+            
+        section: _______
+            __________________
+           
+            
+    Returns
+    -------
+        E: arr (n_eig x n)
+            Eigevalues (energies), ordered from smaller to larger.
+            
+        U: arr ((2 x N) x n_eig x n_k)
+            Eigenvectors of the system with the same ordering.
+    """
     
     if (params=={} or params=='InAs') and crystal=='minimal':
         gamma0, gamma1, gamma2, gamma3 = 1, 0,0,0
@@ -116,7 +169,9 @@ def Kane_2D_solver(H,N,dis,mu,k_vec,mesh=0,sparse='yes',n_eig=0,section='rectang
     m_s = Nx * Ny
     if n_eig==0 or sparse=='no':
         n_eig=m_b
-        
+    
+    if np.isscalar(k_vec):
+        k_vec=np.array([k_vec])
     n_k=len(k_vec)
         
     #Obtain the eigenenergies:
