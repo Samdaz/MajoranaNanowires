@@ -45,9 +45,23 @@ Work in progress.
 ## Installation
 
 #### Using PyPI
-You can install this package from the *Python Package Index* by runing the following pip command:
+You can install this package from the *Python Package Index* by just runing the following pip command:
 
-    pip install MajoranaNanowires-Quantum-Simulation-Package
+    pip3 install MajoranaNanowires-Quantum-Simulation-Package
+
+
+#### From Github
+To install this package from github first clone the repository:
+
+    git clone https://github.com/Samdaz/MajoranaNanowires.git
+
+and then run the seyup.py file:
+
+    sudo python3 setup.py install
+
+Alternatively, you can directly install the package from github using the following pip command:
+
+    pip install git+https://github.com/Samdaz/MajoranaNanowires.git
 
 
 ## Credits and requirements
