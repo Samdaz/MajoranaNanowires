@@ -79,7 +79,7 @@ MajoranaNanowires (Quantum Simulation Package) is released under the MIT License
 
 
 ## How to cite
-If you use this package to perform simulations for scientific results, please consider citing it. You can download [here](https://github.com/Samdaz/MajoranaNanowires/blob/master/MajoranaNanowiresQSP.bibtex) the citation in BibTex format, or just mention our repository with its corresponding DOI number (i.e. Github repository *MajoranaNanowires Quantum Simulation Package*, DOI:...).
+If you use this package to perform simulations for scientific results, please consider citing it. You can download [here](https://github.com/Samdaz/MajoranaNanowires/blob/master/MajoranaNanowiresQSP.bibtex) the citation in BibTex format, or just mention our repository with its corresponding DOI number (i.e. Github repository *MajoranaNanowires Quantum Simulation Package*, DOI: 10.5281/zenodo.3974287).
 
 
 
