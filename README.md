@@ -9,8 +9,9 @@ MajoranaNanowires is a numerical package for Python to model and simulate Majora
   <a href="#benchmarks">Benchmarks</a> •
   <a href="#documentation">Documentation</a> •
   <a href="#installation">Installation</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#license">License</a>
+  <a href="#credits and requirements">Credits</a> •
+  <a href="#license">License</a> •
+  <a href="#how to cite">Cite</a>
 </p>
 
 ---
