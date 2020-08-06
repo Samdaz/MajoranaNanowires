@@ -44,7 +44,10 @@ Work in progress.
 
 ## Installation
 
+#### Using PyPI
+You can install this package from the *Python Package Index* by runing the following pip command:
 
+    pip install MajoranaNanowires-Quantum-Simulation-Package
 
 
 ## Credits and requirements
