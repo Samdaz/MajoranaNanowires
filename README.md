@@ -51,9 +51,9 @@ Work in progress.
 
 This package was initially created by Samuel D. Escribano as a result of his PhD thesis. Apart from built-in and standard scientific Python modules (*Numpy* and *Scipy*), MajoranaNanowires relies on some other open-source packages, in particular:
 
-* [Pfaffian](https://arxiv.org/abs/1102.3440)-- this package allows to compute efficiently the Pfaffian of a matrix. MajoranaNanowires package uses it to compute the topological invariant corresponding to a 1D Hamiltonian. This package is already included in MajoranaNanowires, so no further installation is needed.
+* [Pfaffian](https://arxiv.org/abs/1102.3440) -- this package allows to compute efficiently the Pfaffian of a matrix. MajoranaNanowires package uses it to compute the topological invariant corresponding to a 1D Hamiltonian. This package is already included in MajoranaNanowires, so no further installation is needed.
 
-* [Fenics](https://fenicsproject.org/)-- this package uses finite element methods to solve aritrary partial differential equations. MajoranaNanowires package uses it to solve the Poisson equation for an specific electrostatic environment. Please visit the project webpage to install it.
+* [Fenics](https://fenicsproject.org/) -- this package uses finite element methods to solve aritrary partial differential equations. MajoranaNanowires package uses it to solve the Poisson equation for an specific electrostatic environment. Please visit the project webpage to install it.
 
 
 ## License
